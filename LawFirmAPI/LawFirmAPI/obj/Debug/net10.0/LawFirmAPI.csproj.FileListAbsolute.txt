@@ -1,0 +1,8 @@
+E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\obj\Debug\net10.0\LawFirmAPI.csproj.AssemblyReference.cache
+E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\obj\Debug\net10.0\rpswa.dswa.cache.json
+E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\obj\Debug\net10.0\LawFirmAPI.GeneratedMSBuildEditorConfig.editorconfig
+E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\obj\Debug\net10.0\LawFirmAPI.AssemblyInfoInputs.cache
+E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\obj\Debug\net10.0\LawFirmAPI.AssemblyInfo.cs
+E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\obj\Debug\net10.0\LawFirmAPI.csproj.CoreCompileInputs.cache
+E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\obj\Debug\net10.0\LawFirmAPI.MvcApplicationPartsAssemblyInfo.cs
+E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\obj\Debug\net10.0\LawFirmAPI.MvcApplicationPartsAssemblyInfo.cache
