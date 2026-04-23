@@ -1,6 +1,6 @@
-import { create } from 'zustand';
-import { contactService } from '../services/contactService';
-import toast from 'react-hot-toast';
+import { create } from "zustand";
+import { contactService } from "../services/contactService";
+import toast from "react-hot-toast";
 
 const useContactStore = create((set, get) => ({
   contacts: [],
@@ -10,23 +10,39 @@ const useContactStore = create((set, get) => ({
   isLoading: false,
   totalPages: 0,
   currentPage: 1,
-  searchQuery: '',
+  searchQuery: "",
   filterClient: null,
 
   fetchContacts: async (params = {}) => {
     set({ isLoading: true });
     try {
-      const { search = get().searchQuery, isClient = get().filterClient, page = get().currentPage } = params;
-      const response = await contactService.getContacts({ search, isClient, page });
-      
+      const {
+        search = get().searchQuery,
+        isClient = get().filterClient,
+        page = get().currentPage,
+      } = params;
+
+      // Build query params, but don't include null values
+      const queryParams = {};
+      if (search) queryParams.search = search;
+      if (isClient !== null && isClient !== undefined)
+        queryParams.isClient = isClient;
+      if (page) queryParams.page = page;
+      queryParams.limit = 20;
+
+      console.log("Fetching contacts with params:", queryParams);
+
+      const response = await contactService.getContacts(queryParams);
+
       set({
         contacts: response.items || response,
         totalPages: response.totalPages || 1,
         isLoading: false,
       });
     } catch (error) {
+      console.error("Fetch contacts error:", error);
       set({ isLoading: false });
-      toast.error('Failed to fetch contacts');
+      toast.error("Failed to fetch contacts");
     }
   },
 
@@ -38,7 +54,7 @@ const useContactStore = create((set, get) => ({
       return contact;
     } catch (error) {
       set({ isLoading: false });
-      toast.error('Failed to fetch contact details');
+      toast.error("Failed to fetch contact details");
       return null;
     }
   },
@@ -51,11 +67,11 @@ const useContactStore = create((set, get) => ({
         contacts: [newContact, ...state.contacts],
         isLoading: false,
       }));
-      toast.success('Contact created successfully');
+      toast.success("Contact created successfully");
       return newContact;
     } catch (error) {
       set({ isLoading: false });
-      toast.error('Failed to create contact');
+      toast.error("Failed to create contact");
       return null;
     }
   },
@@ -63,17 +79,20 @@ const useContactStore = create((set, get) => ({
   updateContact: async (id, contactData) => {
     set({ isLoading: true });
     try {
-      const updatedContact = await contactService.updateContact(id, contactData);
+      const updatedContact = await contactService.updateContact(
+        id,
+        contactData,
+      );
       set((state) => ({
         contacts: state.contacts.map((c) => (c.id === id ? updatedContact : c)),
         currentContact: updatedContact,
         isLoading: false,
       }));
-      toast.success('Contact updated successfully');
+      toast.success("Contact updated successfully");
       return updatedContact;
     } catch (error) {
       set({ isLoading: false });
-      toast.error('Failed to update contact');
+      toast.error("Failed to update contact");
       return null;
     }
   },
@@ -86,30 +105,36 @@ const useContactStore = create((set, get) => ({
         contacts: state.contacts.filter((c) => c.id !== id),
         isLoading: false,
       }));
-      toast.success('Contact deleted successfully');
+      toast.success("Contact deleted successfully");
       return true;
     } catch (error) {
       set({ isLoading: false });
-      toast.error('Failed to delete contact');
+      toast.error("Failed to delete contact");
       return false;
     }
   },
 
   addAddress: async (contactId, addressData) => {
     try {
-      const newAddress = await contactService.addAddress(contactId, addressData);
+      const newAddress = await contactService.addAddress(
+        contactId,
+        addressData,
+      );
       set((state) => ({
         currentContact: state.currentContact
           ? {
               ...state.currentContact,
-              addresses: [...(state.currentContact.addresses || []), newAddress],
+              addresses: [
+                ...(state.currentContact.addresses || []),
+                newAddress,
+              ],
             }
           : null,
       }));
-      toast.success('Address added successfully');
+      toast.success("Address added successfully");
       return newAddress;
     } catch (error) {
-      toast.error('Failed to add address');
+      toast.error("Failed to add address");
       return null;
     }
   },
@@ -121,14 +146,16 @@ const useContactStore = create((set, get) => ({
         currentContact: state.currentContact
           ? {
               ...state.currentContact,
-              addresses: (state.currentContact.addresses || []).filter((a) => a.id !== addressId),
+              addresses: (state.currentContact.addresses || []).filter(
+                (a) => a.id !== addressId,
+              ),
             }
           : null,
       }));
-      toast.success('Address deleted successfully');
+      toast.success("Address deleted successfully");
       return true;
     } catch (error) {
-      toast.error('Failed to delete address');
+      toast.error("Failed to delete address");
       return false;
     }
   },
@@ -144,10 +171,10 @@ const useContactStore = create((set, get) => ({
             }
           : null,
       }));
-      toast.success('Phone added successfully');
+      toast.success("Phone added successfully");
       return newPhone;
     } catch (error) {
-      toast.error('Failed to add phone');
+      toast.error("Failed to add phone");
       return null;
     }
   },
@@ -159,14 +186,16 @@ const useContactStore = create((set, get) => ({
         currentContact: state.currentContact
           ? {
               ...state.currentContact,
-              phones: (state.currentContact.phones || []).filter((p) => p.id !== phoneId),
+              phones: (state.currentContact.phones || []).filter(
+                (p) => p.id !== phoneId,
+              ),
             }
           : null,
       }));
-      toast.success('Phone deleted successfully');
+      toast.success("Phone deleted successfully");
       return true;
     } catch (error) {
-      toast.error('Failed to delete phone');
+      toast.error("Failed to delete phone");
       return false;
     }
   },
@@ -182,10 +211,10 @@ const useContactStore = create((set, get) => ({
             }
           : null,
       }));
-      toast.success('Email added successfully');
+      toast.success("Email added successfully");
       return newEmail;
     } catch (error) {
-      toast.error('Failed to add email');
+      toast.error("Failed to add email");
       return null;
     }
   },
@@ -197,14 +226,16 @@ const useContactStore = create((set, get) => ({
         currentContact: state.currentContact
           ? {
               ...state.currentContact,
-              emails: (state.currentContact.emails || []).filter((e) => e.id !== emailId),
+              emails: (state.currentContact.emails || []).filter(
+                (e) => e.id !== emailId,
+              ),
             }
           : null,
       }));
-      toast.success('Email deleted successfully');
+      toast.success("Email deleted successfully");
       return true;
     } catch (error) {
-      toast.error('Failed to delete email');
+      toast.error("Failed to delete email");
       return false;
     }
   },
@@ -215,7 +246,7 @@ const useContactStore = create((set, get) => ({
       set({ tags });
       return tags;
     } catch (error) {
-      toast.error('Failed to fetch tags');
+      toast.error("Failed to fetch tags");
       return [];
     }
   },
@@ -224,10 +255,10 @@ const useContactStore = create((set, get) => ({
     try {
       const newTag = await contactService.createTag(tagData);
       set((state) => ({ tags: [...state.tags, newTag] }));
-      toast.success('Tag created successfully');
+      toast.success("Tag created successfully");
       return newTag;
     } catch (error) {
-      toast.error('Failed to create tag');
+      toast.error("Failed to create tag");
       return null;
     }
   },
@@ -235,10 +266,10 @@ const useContactStore = create((set, get) => ({
   addTagToContact: async (contactId, tagId) => {
     try {
       await contactService.addTagToContact(contactId, tagId);
-      toast.success('Tag added to contact');
+      toast.success("Tag added to contact");
       return true;
     } catch (error) {
-      toast.error('Failed to add tag');
+      toast.error("Failed to add tag");
       return false;
     }
   },
@@ -246,10 +277,10 @@ const useContactStore = create((set, get) => ({
   removeTagFromContact: async (contactId, tagId) => {
     try {
       await contactService.removeTagFromContact(contactId, tagId);
-      toast.success('Tag removed from contact');
+      toast.success("Tag removed from contact");
       return true;
     } catch (error) {
-      toast.error('Failed to remove tag');
+      toast.error("Failed to remove tag");
       return false;
     }
   },
@@ -260,7 +291,7 @@ const useContactStore = create((set, get) => ({
       set({ stats });
       return stats;
     } catch (error) {
-      console.error('Failed to fetch stats:', error);
+      console.error("Failed to fetch stats:", error);
       return null;
     }
   },

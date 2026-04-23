@@ -7,7 +7,15 @@ export const authService = {
   },
 
   login: async (data) => {
-    const response = await api.post('/auth/login', data);
+    // The backend expects PascalCase property names
+    const loginData = {
+      EmailOrUsername: data.emailOrUsername, // Note: Capital 'O' in Or
+      Password: data.password
+    };
+    
+    console.log('Sending login request:', loginData);
+    
+    const response = await api.post('/auth/login', loginData);
     return response.data;
   },
 

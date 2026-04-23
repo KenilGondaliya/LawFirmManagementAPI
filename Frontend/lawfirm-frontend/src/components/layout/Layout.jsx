@@ -2,10 +2,11 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import Modal from '../common/Modal';
 import useUIStore from '../../stores/uiStore';
 
 const Layout = () => {
-  const { sidebarOpen } = useUIStore();
+  const { sidebarOpen, modalOpen, modalContent, modalTitle, closeModal } = useUIStore();
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -16,6 +17,11 @@ const Layout = () => {
           <Outlet />
         </main>
       </div>
+      
+      {/* Global Modal */}
+      <Modal isOpen={modalOpen} onClose={closeModal} title={modalTitle}>
+        {modalContent}
+      </Modal>
     </div>
   );
 };
