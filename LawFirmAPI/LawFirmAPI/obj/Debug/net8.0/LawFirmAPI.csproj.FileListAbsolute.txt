@@ -120,3 +120,4 @@ E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\bin\Debug\net8.0\MailKit.dll
 E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\bin\Debug\net8.0\MimeKit.dll
 E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\bin\Debug\net8.0\System.Security.Cryptography.Pkcs.dll
 E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\bin\Debug\net8.0\runtimes\win\lib\net8.0\System.Security.Cryptography.Pkcs.dll
+E:\D\LawFirmManagementAPI\LawFirmAPI\LawFirmAPI\obj\Debug\net8.0\LawFirmAPI.sourcelink.json

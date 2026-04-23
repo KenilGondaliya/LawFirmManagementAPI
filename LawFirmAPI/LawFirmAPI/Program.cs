@@ -87,6 +87,19 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IAISummaryService, AISummaryService>();
 builder.Services.AddSingleton<IJwtHelper, JwtHelper>();
+
+// Module Services
+builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<ICalendarService, CalendarService>();
+builder.Services.AddScoped<IMattersService, MattersService>();
+builder.Services.AddScoped<IContactsService, ContactsService>();
+builder.Services.AddScoped<ITasksService, TasksService>();
+builder.Services.AddScoped<IDocumentsService, DocumentsService>();
+builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
+builder.Services.AddScoped<IBillingService, BillingService>();
+builder.Services.AddScoped<ISettingsService, SettingsService>();
+
+
 builder.Services.AddHttpContextAccessor();
 
 // CORS

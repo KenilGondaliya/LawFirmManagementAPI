@@ -12,10 +12,25 @@ namespace LawFirmAPI.Models.Entities
         
         public Guid Uuid { get; set; } = Guid.NewGuid();
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        private DateTime _createdAt;
+        public DateTime CreatedAt 
+        { 
+            get => _createdAt;
+            set => _createdAt = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
         
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        private DateTime _updatedAt;
+        public DateTime UpdatedAt 
+        { 
+            get => _updatedAt;
+            set => _updatedAt = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+        }
         
-        public DateTime? DeletedAt { get; set; }
+        private DateTime? _deletedAt;
+        public DateTime? DeletedAt 
+        { 
+            get => _deletedAt;
+            set => _deletedAt = value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : null;
+        }
     }
 }

@@ -1,4 +1,5 @@
-// Services/ContactsService.cs
+// Services/ContactsService.cs - FIXED VERSION
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,10 +50,84 @@ namespace LawFirmAPI.Services
             _context = context;
         }
 
+        private static DateTime? EnsureUtc(DateTime? date)
+        {
+            if (!date.HasValue) return null;
+            return DateTime.SpecifyKind(date.Value, DateTimeKind.Utc);
+        }
+
+        private static DateTime EnsureUtc(DateTime date)
+        {
+            return DateTime.SpecifyKind(date, DateTimeKind.Utc);
+        }
+
+        // ✅ Make MapToDto STATIC
+        private static ContactDto MapToDto(Contact c)
+        {
+            return new ContactDto
+            {
+                Id = c.Id,
+                Uuid = c.Uuid,
+                FirstName = c.FirstName,
+                LastName = c.LastName,
+                FullName = $"{c.FirstName} {c.LastName}".Trim(),
+                Email = c.Email,
+                Phone = c.Phone,
+                CompanyName = c.CompanyName,
+                Title = c.Title,
+                Department = c.Department,
+                IsClient = c.IsClient,
+                IsOpponent = c.IsOpponent,
+                IsWitness = c.IsWitness,
+                IsJudge = c.IsJudge,
+                IsAdvocate = c.IsAdvocate,
+                IsImportant = c.IsImportant,
+                Notes = c.Notes,
+                ProfileImageUrl = c.ProfileImageUrl,
+                ContactTypeId = c.ContactTypeId,
+                ContactTypeName = c.ContactType?.Name,
+                Addresses = c.Addresses.Select(a => new ContactAddressDto
+                {
+                    Id = a.Id,
+                    AddressType = a.AddressType,
+                    AddressLine1 = a.AddressLine1,
+                    AddressLine2 = a.AddressLine2,
+                    City = a.City,
+                    State = a.State,
+                    PostalCode = a.PostalCode,
+                    Country = a.Country,
+                    IsPrimary = a.IsPrimary
+                }).ToList(),
+                Phones = c.Phones.Select(p => new ContactPhoneDto
+                {
+                    Id = p.Id,
+                    PhoneType = p.PhoneType,
+                    PhoneNumber = p.PhoneNumber,
+                    CountryCode = p.CountryCode,
+                    Extension = p.Extension,
+                    IsPrimary = p.IsPrimary,
+                    IsWhatsapp = p.IsWhatsapp
+                }).ToList(),
+                Emails = c.Emails.Select(e => new ContactEmailDto
+                {
+                    Id = e.Id,
+                    EmailType = e.EmailType,
+                    Email = e.Email,
+                    IsPrimary = e.IsPrimary
+                }).ToList(),
+                CreatedAt = c.CreatedAt,
+                UpdatedAt = c.UpdatedAt
+            };
+        }
+
+        // ✅ Alternative: Use Projection Instead of MapToDto in LINQ
         public async Task<List<ContactDto>> GetAllContacts(long firmId, string? search, bool? isClient)
         {
             var query = _context.Contacts
                 .Include(c => c.ContactType)
+                .Include(c => c.Addresses)
+                .Include(c => c.Phones)
+                .Include(c => c.Emails)
                 .Where(c => c.FirmId == firmId && c.DeletedAt == null);
 
             if (!string.IsNullOrEmpty(search))
@@ -70,10 +145,10 @@ namespace LawFirmAPI.Services
 
             var contacts = await query
                 .OrderBy(c => c.LastName)
-                .Select(c => MapToDto(c))
-                .ToListAsync();
+                .ToListAsync();  // ✅ First get data from database
 
-            return contacts;
+            // ✅ Then map to DTO in memory (after ToListAsync)
+            return contacts.Select(c => MapToDto(c)).ToList();
         }
 
         public async Task<ContactDto?> GetContactById(long id, long firmId)
@@ -109,10 +184,10 @@ namespace LawFirmAPI.Services
                 AlternativePhone = createDto.AlternativePhone,
                 Fax = createDto.Fax,
                 Website = createDto.Website,
-                DateOfBirth = createDto.DateOfBirth,
+                DateOfBirth = EnsureUtc(createDto.DateOfBirth),
                 Gender = createDto.Gender,
                 MaritalStatus = createDto.MaritalStatus,
-                Anniversary = createDto.Anniversary,
+                Anniversary = EnsureUtc(createDto.Anniversary),
                 Nationality = createDto.Nationality,
                 TaxId = createDto.TaxId,
                 IdentificationNumber = createDto.IdentificationNumber,
@@ -125,8 +200,8 @@ namespace LawFirmAPI.Services
                 IsImportant = createDto.IsImportant,
                 Notes = createDto.Notes,
                 CreatedBy = userId,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = EnsureUtc(DateTime.UtcNow),
+                UpdatedAt = EnsureUtc(DateTime.UtcNow)
             };
 
             _context.Contacts.Add(contact);
@@ -148,8 +223,8 @@ namespace LawFirmAPI.Services
                         PostalCode = addrDto.PostalCode,
                         Country = addrDto.Country,
                         IsPrimary = addrDto.IsPrimary,
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow
+                        CreatedAt = EnsureUtc(DateTime.UtcNow),
+                        UpdatedAt = EnsureUtc(DateTime.UtcNow)
                     };
                     _context.ContactAddresses.Add(address);
                 }
@@ -169,7 +244,7 @@ namespace LawFirmAPI.Services
                         Extension = phoneDto.Extension,
                         IsPrimary = phoneDto.IsPrimary,
                         IsWhatsapp = phoneDto.IsWhatsapp,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = EnsureUtc(DateTime.UtcNow)
                     };
                     _context.ContactPhones.Add(phone);
                 }
@@ -186,7 +261,7 @@ namespace LawFirmAPI.Services
                         EmailType = emailDto.EmailType,
                         Email = emailDto.Email,
                         IsPrimary = emailDto.IsPrimary,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = EnsureUtc(DateTime.UtcNow)
                     };
                     _context.ContactEmails.Add(email);
                 }
@@ -254,11 +329,11 @@ namespace LawFirmAPI.Services
             if (updateDto.Notes != null)
                 contact.Notes = updateDto.Notes;
             if (updateDto.DateOfBirth.HasValue)
-                contact.DateOfBirth = updateDto.DateOfBirth;
+                contact.DateOfBirth = EnsureUtc(updateDto.DateOfBirth);
             if (updateDto.MaritalStatus != null)
                 contact.MaritalStatus = updateDto.MaritalStatus;
 
-            contact.UpdatedAt = DateTime.UtcNow;
+            contact.UpdatedAt = EnsureUtc(DateTime.UtcNow);
             await _context.SaveChangesAsync();
 
             return MapToDto(contact);
@@ -272,7 +347,7 @@ namespace LawFirmAPI.Services
             if (contact == null)
                 return false;
 
-            contact.DeletedAt = DateTime.UtcNow;
+            contact.DeletedAt = EnsureUtc(DateTime.UtcNow);
             await _context.SaveChangesAsync();
 
             return true;
@@ -312,8 +387,8 @@ namespace LawFirmAPI.Services
                 PostalCode = addressDto.PostalCode,
                 Country = addressDto.Country,
                 IsPrimary = addressDto.IsPrimary,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                CreatedAt = EnsureUtc(DateTime.UtcNow),
+                UpdatedAt = EnsureUtc(DateTime.UtcNow)
             };
 
             _context.ContactAddresses.Add(address);
@@ -377,7 +452,7 @@ namespace LawFirmAPI.Services
                 Extension = phoneDto.Extension,
                 IsPrimary = phoneDto.IsPrimary,
                 IsWhatsapp = phoneDto.IsWhatsapp,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = EnsureUtc(DateTime.UtcNow)
             };
 
             _context.ContactPhones.Add(phone);
@@ -433,7 +508,7 @@ namespace LawFirmAPI.Services
                 EmailType = emailDto.EmailType,
                 Email = emailDto.Email,
                 IsPrimary = emailDto.IsPrimary,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = EnsureUtc(DateTime.UtcNow)
             };
 
             _context.ContactEmails.Add(email);
@@ -469,7 +544,8 @@ namespace LawFirmAPI.Services
                 ContactId = contactId,
                 RelatedContactId = spouseContactId,
                 RelationshipType = "SPOUSE",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = EnsureUtc(DateTime.UtcNow),
+                UpdatedAt = EnsureUtc(DateTime.UtcNow)
             };
 
             _context.ContactRelationships.Add(relationship);
@@ -491,7 +567,8 @@ namespace LawFirmAPI.Services
                 RelatedContactId = relativeDto.RelatedContactId,
                 RelationshipType = relativeDto.RelationshipType,
                 Notes = relativeDto.Notes,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = EnsureUtc(DateTime.UtcNow),
+                UpdatedAt = EnsureUtc(DateTime.UtcNow)
             };
 
             _context.ContactRelationships.Add(relationship);
@@ -542,7 +619,7 @@ namespace LawFirmAPI.Services
                 FirmId = firmId,
                 Name = createDto.Name,
                 Color = createDto.Color,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = EnsureUtc(DateTime.UtcNow)
             };
 
             _context.Tags.Add(tag);
@@ -567,7 +644,7 @@ namespace LawFirmAPI.Services
                 {
                     ContactId = contactId,
                     TagId = tagId,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = EnsureUtc(DateTime.UtcNow)
                 };
                 _context.ContactTags.Add(contactTag);
                 await _context.SaveChangesAsync();
@@ -590,12 +667,12 @@ namespace LawFirmAPI.Services
         {
             var contacts = await _context.ContactTags
                 .Where(ct => ct.TagId == tagId)
+                .Include(ct => ct.Contact)
                 .Select(ct => ct.Contact)
                 .Where(c => c != null && c.FirmId == firmId && c.DeletedAt == null)
-                .Select(c => MapToDto(c!))
                 .ToListAsync();
 
-            return contacts;
+            return contacts.Select(c => MapToDto(c!)).ToList();
         }
 
         public async Task<List<MatterBriefDto>> GetContactMatters(long contactId, long firmId)
@@ -674,64 +751,6 @@ namespace LawFirmAPI.Services
             return stats;
         }
 
-        private ContactDto MapToDto(Contact c)
-        {
-            return new ContactDto
-            {
-                Id = c.Id,
-                Uuid = c.Uuid,
-                FirstName = c.FirstName,
-                LastName = c.LastName,
-                FullName = $"{c.FirstName} {c.LastName}".Trim(),
-                Email = c.Email,
-                Phone = c.Phone,
-                CompanyName = c.CompanyName,
-                Title = c.Title,
-                Department = c.Department,
-                IsClient = c.IsClient,
-                IsOpponent = c.IsOpponent,
-                IsWitness = c.IsWitness,
-                IsJudge = c.IsJudge,
-                IsAdvocate = c.IsAdvocate,
-                IsImportant = c.IsImportant,
-                Notes = c.Notes,
-                ProfileImageUrl = c.ProfileImageUrl,
-                ContactTypeId = c.ContactTypeId,
-                ContactTypeName = c.ContactType?.Name,
-                Addresses = c.Addresses.Select(a => new ContactAddressDto
-                {
-                    Id = a.Id,
-                    AddressType = a.AddressType,
-                    AddressLine1 = a.AddressLine1,
-                    AddressLine2 = a.AddressLine2,
-                    City = a.City,
-                    State = a.State,
-                    PostalCode = a.PostalCode,
-                    Country = a.Country,
-                    IsPrimary = a.IsPrimary
-                }).ToList(),
-                Phones = c.Phones.Select(p => new ContactPhoneDto
-                {
-                    Id = p.Id,
-                    PhoneType = p.PhoneType,
-                    PhoneNumber = p.PhoneNumber,
-                    CountryCode = p.CountryCode,
-                    Extension = p.Extension,
-                    IsPrimary = p.IsPrimary,
-                    IsWhatsapp = p.IsWhatsapp
-                }).ToList(),
-                Emails = c.Emails.Select(e => new ContactEmailDto
-                {
-                    Id = e.Id,
-                    EmailType = e.EmailType,
-                    Email = e.Email,
-                    IsPrimary = e.IsPrimary
-                }).ToList(),
-                CreatedAt = c.CreatedAt,
-                UpdatedAt = c.UpdatedAt
-            };
-        }
-
         private void AddRecentActivity(long firmId, long userId, string activityType, string entityType, long entityId, string entityName, string description)
         {
             var activity = new RecentActivity
@@ -743,9 +762,10 @@ namespace LawFirmAPI.Services
                 EntityId = entityId,
                 EntityName = entityName,
                 Description = description,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = EnsureUtc(DateTime.UtcNow)
             };
             _context.RecentActivities.Add(activity);
+            _context.SaveChanges();
         }
     }
 }
