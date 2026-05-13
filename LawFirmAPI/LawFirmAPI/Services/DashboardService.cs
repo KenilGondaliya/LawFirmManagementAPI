@@ -127,22 +127,21 @@ namespace LawFirmAPI.Services
                 .Where(a => a.FirmId == firmId)
                 .OrderByDescending(a => a.CreatedAt)
                 .Take(limit)
-                .Select(a => new RecentActivityDto
-                {
-                    Id = a.Id,
-                    ActivityType = a.ActivityType,
-                    EntityType = a.EntityType,
-                    EntityId = a.EntityId,
-                    EntityName = a.EntityName,
-                    Description = a.Description,
-                    UserName = a.User != null ? $"{a.User.FirstName} {a.User.LastName}" : "System",
-                    CreatedAt = a.CreatedAt
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return activities;
+            // ✅ SECOND: Map to DTO in memory
+            return activities.Select(a => new RecentActivityDto
+            {
+                Id = a.Id,
+                ActivityType = a.ActivityType,
+                EntityType = a.EntityType,
+                EntityId = a.EntityId,
+                EntityName = a.EntityName,
+                Description = a.Description,
+                UserName = a.User != null ? $"{a.User.FirstName} {a.User.LastName}" : "System",
+                CreatedAt = a.CreatedAt
+            }).ToList();
         }
-
         public async Task<List<NotificationDto>> GetNotifications(long userId, long firmId, bool unreadOnly = false)
         {
             var query = _context.Notifications
@@ -154,20 +153,20 @@ namespace LawFirmAPI.Services
             var notifications = await query
                 .OrderByDescending(n => n.CreatedAt)
                 .Take(50)
-                .Select(n => new NotificationDto
-                {
-                    Id = n.Id,
-                    Title = n.Title,
-                    Message = n.Message,
-                    NotificationType = n.NotificationType,
-                    RelatedEntityType = n.RelatedEntityType,
-                    RelatedEntityId = n.RelatedEntityId,
-                    IsRead = n.IsRead,
-                    CreatedAt = n.CreatedAt
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return notifications;
+            // ✅ SECOND: Map to DTO in memory
+            return notifications.Select(n => new NotificationDto
+            {
+                Id = n.Id,
+                Title = n.Title,
+                Message = n.Message,
+                NotificationType = n.NotificationType,
+                RelatedEntityType = n.RelatedEntityType,
+                RelatedEntityId = n.RelatedEntityId,
+                IsRead = n.IsRead,
+                CreatedAt = n.CreatedAt
+            }).ToList();
         }
 
         public async Task<int> MarkNotificationAsRead(long notificationId, long userId)
@@ -194,25 +193,27 @@ namespace LawFirmAPI.Services
                 .Include(e => e.Contact)
                 .Where(e => e.FirmId == firmId && e.StartDateTime >= DateTime.UtcNow && e.StartDateTime <= endDate && e.DeletedAt == null)
                 .OrderBy(e => e.StartDateTime)
-                .Select(e => new UpcomingEventDto
-                {
-                    Id = e.Id,
-                    Title = e.Title,
-                    Description = e.Description,
-                    Location = e.Location,
-                    EventType = e.EventType,
-                    StartDateTime = e.StartDateTime,
-                    EndDateTime = e.EndDateTime,
-                    IsAllDay = e.IsAllDay,
-                    MatterTitle = e.Matter != null ? e.Matter.Title : null,
-                    ContactName = e.Contact != null ? $"{e.Contact.FirstName} {e.Contact.LastName}" : null
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
+
+            // ✅ SECOND: Map to DTO in memory
+            var eventDtos = events.Select(e => new UpcomingEventDto
+            {
+                Id = e.Id,
+                Title = e.Title,
+                Description = e.Description,
+                Location = e.Location,
+                EventType = e.EventType,
+                StartDateTime = e.StartDateTime,
+                EndDateTime = e.EndDateTime,
+                IsAllDay = e.IsAllDay,
+                MatterTitle = e.Matter?.Title,
+                ContactName = e.Contact != null ? $"{e.Contact.FirstName} {e.Contact.LastName}" : null
+            }).ToList();
 
             return new UpcomingEventsDto
             {
-                Events = events,
-                Total = events.Count
+                Events = eventDtos,
+                Total = eventDtos.Count
             };
         }
 
@@ -241,23 +242,14 @@ namespace LawFirmAPI.Services
         {
             var bills = await _context.Bills
                 .Where(b => b.FirmId == firmId && b.DeletedAt == null)
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
             var recentInvoices = await _context.Bills
                 .Include(b => b.Contact)
                 .Where(b => b.FirmId == firmId && b.DeletedAt == null)
                 .OrderByDescending(b => b.CreatedAt)
                 .Take(5)
-                .Select(b => new RecentBillDto
-                {
-                    Id = b.Id,
-                    BillNumber = b.BillNumber,
-                    TotalAmount = b.TotalAmount,
-                    Status = b.Status != null ? b.Status.Name : "Draft",
-                    ClientName = b.Contact != null ? $"{b.Contact.FirstName} {b.Contact.LastName}" : null,
-                    DueDate = b.DueDate
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
             return new BillingSummaryDto
             {
@@ -265,9 +257,18 @@ namespace LawFirmAPI.Services
                 TotalPaid = bills.Sum(b => b.PaidAmount),
                 TotalOutstanding = bills.Sum(b => b.BalanceDue),
                 OverdueBills = bills.Count(b => b.DueDate < DateTime.UtcNow && b.BalanceDue > 0),
-                RecentInvoices = recentInvoices
+                RecentInvoices = recentInvoices.Select(b => new RecentBillDto
+                {
+                    Id = b.Id,
+                    BillNumber = b.BillNumber,
+                    TotalAmount = b.TotalAmount,
+                    Status = b.Status?.Name ?? "Draft",
+                    ClientName = b.Contact != null ? $"{b.Contact.FirstName} {b.Contact.LastName}" : null,
+                    DueDate = b.DueDate
+                }).ToList()
             };
         }
+
 
         public async Task UpdateWidgetPreferences(long userId, long firmId, List<WidgetPreferenceDto> widgets)
         {

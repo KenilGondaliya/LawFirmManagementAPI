@@ -50,6 +50,7 @@ namespace LawFirmAPI.Services
             _fileService = fileService;
         }
 
+
         public async Task<List<TaskDto>> GetAllTasks(long firmId, long? matterId, string? status, string? priority, long? assigneeId)
         {
             var query = _context.Tasks
@@ -75,10 +76,10 @@ namespace LawFirmAPI.Services
 
             var tasks = await query
                 .OrderByDescending(t => t.CreatedAt)
-                .Select(t => MapToDto(t))
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return tasks;
+            // ✅ SECOND: Map to DTO in memory
+            return tasks.Select(t => MapToDto(t)).ToList();
         }
 
         public async System.Threading.Tasks.Task<TaskDto?> GetTaskById(long id, long firmId)
@@ -194,7 +195,7 @@ namespace LawFirmAPI.Services
                 throw new KeyNotFoundException("Task not found");
 
             task.StatusId = statusId;
-            
+
             var status = await _context.TaskStatuses.FindAsync(statusId);
             if (status != null && status.Name == "Completed")
             {
@@ -217,12 +218,14 @@ namespace LawFirmAPI.Services
                     .ThenInclude(t => t!.Priority)
                 .Include(ta => ta.Task)
                     .ThenInclude(t => t!.Matter)
-                .Where(ta => ta.UserId == userId && ta.Task != null && ta.Task.FirmId == firmId && ((TaskEntity)ta.Task).DeletedAt == null)
-                .Select(ta => MapToDto(ta.Task!))
-                .ToListAsync();
+                .Where(ta => ta.UserId == userId && ta.Task != null && ta.Task.FirmId == firmId && ta.Task.DeletedAt == null)
+                .Select(ta => ta.Task)
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return tasks;
+            // ✅ SECOND: Map to DTO in memory
+            return tasks.Select(t => MapToDto(t!)).ToList();
         }
+
 
         public async System.Threading.Tasks.Task<List<TaskDto>> GetTasksCreatedByUser(long firmId, long userId)
         {
@@ -244,9 +247,9 @@ namespace LawFirmAPI.Services
                 .Include(t => t.Status)
                 .Include(t => t.Priority)
                 .Include(t => t.Matter)
-                .Where(t => t.FirmId == firmId && 
-                           t.DueDate.HasValue && 
-                           t.DueDate < DateTime.UtcNow && 
+                .Where(t => t.FirmId == firmId &&
+                           t.DueDate.HasValue &&
+                           t.DueDate < DateTime.UtcNow &&
                            !t.CompletedAt.HasValue &&
                            t.DeletedAt == null)
                 .OrderBy(t => t.DueDate)
@@ -264,8 +267,8 @@ namespace LawFirmAPI.Services
                 .Include(t => t.Status)
                 .Include(t => t.Priority)
                 .Include(t => t.Matter)
-                .Where(t => t.FirmId == firmId && 
-                           t.DueDate.HasValue && 
+                .Where(t => t.FirmId == firmId &&
+                           t.DueDate.HasValue &&
                            t.DueDate.Value.Date == today &&
                            !t.CompletedAt.HasValue &&
                            t.DeletedAt == null)
@@ -285,8 +288,8 @@ namespace LawFirmAPI.Services
                 .Include(t => t.Status)
                 .Include(t => t.Priority)
                 .Include(t => t.Matter)
-                .Where(t => t.FirmId == firmId && 
-                           t.DueDate.HasValue && 
+                .Where(t => t.FirmId == firmId &&
+                           t.DueDate.HasValue &&
                            t.DueDate.Value.Date >= today &&
                            t.DueDate.Value.Date <= endOfWeek &&
                            !t.CompletedAt.HasValue &&
@@ -458,21 +461,22 @@ namespace LawFirmAPI.Services
             return true;
         }
 
-        public async System.Threading.Tasks.Task<List<TaskStatusDto>> GetTaskStatuses(long firmId)
+        public async Task<List<TaskStatusDto>> GetTaskStatuses(long firmId)
         {
             var statuses = await _context.TaskStatuses
                 .Where(ts => ts.FirmId == firmId)
-                .Select(ts => new TaskStatusDto
-                {
-                    Id = ts.Id,
-                    Name = ts.Name,
-                    Color = ts.Color,
-                    IsDefault = ts.IsDefault
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return statuses;
+            // ✅ SECOND: Map to DTO in memory
+            return statuses.Select(ts => new TaskStatusDto
+            {
+                Id = ts.Id,
+                Name = ts.Name,
+                Color = ts.Color,
+                IsDefault = ts.IsDefault
+            }).ToList();
         }
+
 
         public async System.Threading.Tasks.Task<TaskStatusDto> CreateTaskStatus(long firmId, CreateTaskStatusDto createDto)
         {
@@ -497,21 +501,21 @@ namespace LawFirmAPI.Services
             };
         }
 
-        public async System.Threading.Tasks.Task<List<TaskPriorityDto>> GetTaskPriorities(long firmId)
+        public async Task<List<TaskPriorityDto>> GetTaskPriorities(long firmId)
         {
             var priorities = await _context.TaskPriorities
                 .Where(tp => tp.FirmId == firmId)
                 .OrderBy(tp => tp.Level)
-                .Select(tp => new TaskPriorityDto
-                {
-                    Id = tp.Id,
-                    Name = tp.Name,
-                    Color = tp.Color,
-                    Level = tp.Level
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return priorities;
+            // ✅ SECOND: Map to DTO in memory
+            return priorities.Select(tp => new TaskPriorityDto
+            {
+                Id = tp.Id,
+                Name = tp.Name,
+                Color = tp.Color,
+                Level = tp.Level
+            }).ToList();
         }
 
         public async System.Threading.Tasks.Task<TaskPriorityDto> CreateTaskPriority(long firmId, CreateTaskPriorityDto createDto)
@@ -536,6 +540,8 @@ namespace LawFirmAPI.Services
                 Level = priority.Level
             };
         }
+
+
 
         public async System.Threading.Tasks.Task<TaskStatsDto> GetTaskStats(long firmId, long userId)
         {

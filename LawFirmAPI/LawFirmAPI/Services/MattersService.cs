@@ -56,19 +56,20 @@ namespace LawFirmAPI.Services
 
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(m => 
-                    m.Title.Contains(search) || 
+                query = query.Where(m =>
+                    m.Title.Contains(search) ||
                     m.MatterNumber.Contains(search) ||
                     (m.Description != null && m.Description.Contains(search)));
             }
 
             var matters = await query
                 .OrderByDescending(m => m.CreatedAt)
-                .Select(m => MapToDto(m))
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return matters;
+            // ✅ SECOND: Map to DTO in memory
+            return matters.Select(m => MapToDto(m)).ToList();
         }
+
 
         public async Task<MatterDto?> GetMatterById(long id, long firmId)
         {
@@ -222,17 +223,17 @@ namespace LawFirmAPI.Services
         {
             var types = await _context.MatterTypes
                 .Where(mt => mt.FirmId == firmId && mt.IsActive)
-                .Select(mt => new MatterTypeDto
-                {
-                    Id = mt.Id,
-                    Name = mt.Name,
-                    Category = mt.Category,
-                    Description = mt.Description,
-                    IsActive = mt.IsActive
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return types;
+            // ✅ SECOND: Map to DTO in memory
+            return types.Select(mt => new MatterTypeDto
+            {
+                Id = mt.Id,
+                Name = mt.Name,
+                Category = mt.Category,
+                Description = mt.Description,
+                IsActive = mt.IsActive
+            }).ToList();
         }
 
         public async Task<MatterTypeDto> CreateMatterType(long firmId, CreateMatterTypeDto createDto)
@@ -265,18 +266,18 @@ namespace LawFirmAPI.Services
             var parties = await _context.MatterParties
                 .Include(mp => mp.Contact)
                 .Where(mp => mp.MatterId == matterId)
-                .Select(mp => new MatterPartyDto
-                {
-                    Id = mp.Id,
-                    ContactId = mp.ContactId,
-                    ContactName = mp.Contact != null ? $"{mp.Contact.FirstName} {mp.Contact.LastName}" : null,
-                    PartyType = mp.PartyType,
-                    RoleDescription = mp.RoleDescription,
-                    IsPrimary = mp.IsPrimary
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return parties;
+            // ✅ SECOND: Map to DTO in memory
+            return parties.Select(mp => new MatterPartyDto
+            {
+                Id = mp.Id,
+                ContactId = mp.ContactId,
+                ContactName = mp.Contact != null ? $"{mp.Contact.FirstName} {mp.Contact.LastName}" : null,
+                PartyType = mp.PartyType,
+                RoleDescription = mp.RoleDescription,
+                IsPrimary = mp.IsPrimary
+            }).ToList();
         }
 
         public async Task<MatterPartyDto> AddMatterParty(long matterId, long firmId, AddMatterPartyDto partyDto)
@@ -330,19 +331,20 @@ namespace LawFirmAPI.Services
                 .Include(mn => mn.User)
                 .Where(mn => mn.MatterId == matterId && (!mn.IsPrivate || mn.UserId == userId))
                 .OrderByDescending(mn => mn.CreatedAt)
-                .Select(mn => new MatterNoteDto
-                {
-                    Id = mn.Id,
-                    Note = mn.Note,
-                    IsPrivate = mn.IsPrivate,
-                    UserName = mn.User != null ? $"{mn.User.FirstName} {mn.User.LastName}" : null,
-                    CreatedAt = mn.CreatedAt,
-                    UpdatedAt = mn.UpdatedAt
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return notes;
+            // ✅ SECOND: Map to DTO in memory
+            return notes.Select(mn => new MatterNoteDto
+            {
+                Id = mn.Id,
+                Note = mn.Note,
+                IsPrivate = mn.IsPrivate,
+                UserName = mn.User != null ? $"{mn.User.FirstName} {mn.User.LastName}" : null,
+                CreatedAt = mn.CreatedAt,
+                UpdatedAt = mn.UpdatedAt
+            }).ToList();
         }
+
 
         public async Task<MatterNoteDto> AddMatterNote(long matterId, long firmId, long userId, AddMatterNoteDto noteDto)
         {
@@ -393,33 +395,39 @@ namespace LawFirmAPI.Services
         {
             var areas = await _context.PracticeAreas
                 .Where(pa => pa.FirmId == firmId && pa.IsActive)
-                .Select(pa => new PracticeAreaDto
-                {
-                    Id = pa.Id,
-                    Name = pa.Name,
-                    Description = pa.Description,
-                    Color = pa.Color,
-                    IsActive = pa.IsActive
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return areas;
+            // ✅ SECOND: Map to DTO in memory
+            return areas.Select(pa => new PracticeAreaDto
+            {
+                Id = pa.Id,
+                Name = pa.Name,
+                Description = pa.Description,
+                Color = pa.Color,
+                IsActive = pa.IsActive
+            }).ToList();
         }
 
         public async Task<PracticeAreaDto> CreatePracticeArea(long firmId, CreatePracticeAreaDto createDto)
         {
+            if (createDto == null)
+                throw new ArgumentNullException(nameof(createDto));
+
+            if (string.IsNullOrWhiteSpace(createDto.Name))
+                throw new ArgumentException("Practice area name is required");
+
             var practiceArea = new PracticeArea
             {
                 FirmId = firmId,
-                Name = createDto.Name,
+                Name = createDto.Name.Trim(),
                 Description = createDto.Description,
                 Color = createDto.Color,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.PracticeAreas.Add(practiceArea);
-            await _context.SaveChangesAsync();
+            _context.PracticeAreas.Add(practiceArea);  // ✅ Use _context, not _mattersService
+            await _context.SaveChangesAsync();          // ✅ Use _context
 
             return new PracticeAreaDto
             {
@@ -430,6 +438,7 @@ namespace LawFirmAPI.Services
                 IsActive = practiceArea.IsActive
             };
         }
+
 
         public async Task<DashboardMatterStatsDto> GetMatterStats(long firmId)
         {

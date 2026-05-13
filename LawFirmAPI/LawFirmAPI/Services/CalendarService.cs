@@ -1,4 +1,5 @@
-// Services/CalendarService.cs
+// Services/CalendarService.cs - COMPLETELY FIXED VERSION
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -40,6 +41,38 @@ namespace LawFirmAPI.Services
             _context = context;
         }
 
+        // ✅ Make MapToDto STATIC
+        private static CalendarEventDto MapToDto(CalendarEvent e)
+        {
+            return new CalendarEventDto
+            {
+                Id = e.Id,
+                Uuid = e.Uuid,
+                Title = e.Title,
+                Description = e.Description,
+                Location = e.Location,
+                EventType = e.EventType,
+                StartDateTime = e.StartDateTime,
+                EndDateTime = e.EndDateTime,
+                IsAllDay = e.IsAllDay,
+                Color = e.Color,
+                MatterId = e.MatterId,
+                MatterTitle = e.Matter?.Title,
+                ContactId = e.ContactId,
+                ContactName = e.Contact != null ? $"{e.Contact.FirstName} {e.Contact.LastName}" : null,
+                CreatedBy = e.CreatedBy,
+                Attendees = e.Attendees.Select(a => new EventAttendeeDto
+                {
+                    UserId = a.UserId,
+                    AttendeeType = a.AttendeeType,
+                    ResponseStatus = a.ResponseStatus
+                }).ToList(),
+                CreatedAt = e.CreatedAt,
+                UpdatedAt = e.UpdatedAt
+            };
+        }
+
+        // ✅ FIXED: Get data first, then map
         public async Task<List<CalendarEventDto>> GetEvents(long firmId, DateTime? start, DateTime? end)
         {
             var query = _context.CalendarEvents
@@ -53,12 +86,13 @@ namespace LawFirmAPI.Services
             if (end.HasValue)
                 query = query.Where(e => e.EndDateTime <= end.Value);
 
-            var events = await query
-                .OrderBy(e => e.StartDateTime)
-                .Select(e => MapToDto(e))
-                .ToListAsync();
+            query = query.OrderBy(e => e.StartDateTime);
 
-            return events;
+            // ✅ FIRST: Get entities from database
+            var events = await query.ToListAsync();
+            
+            // ✅ SECOND: Map to DTOs in memory
+            return events.Select(e => MapToDto(e)).ToList();
         }
 
         public async Task<CalendarEventDto?> GetEventById(long id, long firmId)
@@ -176,27 +210,33 @@ namespace LawFirmAPI.Services
             return true;
         }
 
+        // ✅ FIXED: Get data first, then map
         public async Task<List<CalendarEventDto>> GetEventsByDateRange(long firmId, DateTime start, DateTime end)
         {
             var events = await _context.CalendarEvents
+                .Include(e => e.Matter)
+                .Include(e => e.Contact)
+                .Include(e => e.Attendees)
                 .Where(e => e.FirmId == firmId && e.StartDateTime >= start && e.EndDateTime <= end && e.DeletedAt == null)
                 .OrderBy(e => e.StartDateTime)
-                .Select(e => MapToDto(e))
                 .ToListAsync();
 
-            return events;
+            return events.Select(e => MapToDto(e)).ToList();
         }
 
+        // ✅ FIXED: Get data first, then map
         public async Task<List<CalendarEventDto>> GetUpcomingEvents(long firmId, int limit = 10)
         {
             var events = await _context.CalendarEvents
+                .Include(e => e.Matter)
+                .Include(e => e.Contact)
+                .Include(e => e.Attendees)
                 .Where(e => e.FirmId == firmId && e.StartDateTime >= DateTime.UtcNow && e.DeletedAt == null)
                 .OrderBy(e => e.StartDateTime)
                 .Take(limit)
-                .Select(e => MapToDto(e))
                 .ToListAsync();
 
-            return events;
+            return events.Select(e => MapToDto(e)).ToList();
         }
 
         public async Task<EventAttendeeDto> AddAttendee(long eventId, long firmId, long userId, string attendeeType)
@@ -342,6 +382,7 @@ namespace LawFirmAPI.Services
             return MapToDto(eventItem);
         }
 
+        // ✅ These call GetEventsByDateRange which is already fixed
         public async Task<List<CalendarEventDto>> GetMonthView(long firmId, int year, int month)
         {
             var startDate = new DateTime(year, month, 1);
@@ -352,7 +393,7 @@ namespace LawFirmAPI.Services
 
         public async Task<List<CalendarEventDto>> GetWeekView(long firmId, DateTime date)
         {
-            var startOfWeek = date.AddDays(-(int)date.DayOfWeek + 1); // Monday
+            var startOfWeek = date.AddDays(-(int)date.DayOfWeek + 1);
             var endOfWeek = startOfWeek.AddDays(6);
 
             return await GetEventsByDateRange(firmId, startOfWeek, endOfWeek);
@@ -369,36 +410,6 @@ namespace LawFirmAPI.Services
         public async Task<List<CalendarEventDto>> GetAgendaView(long firmId, DateTime start, DateTime end)
         {
             return await GetEventsByDateRange(firmId, start, end);
-        }
-
-        private CalendarEventDto MapToDto(CalendarEvent e)
-        {
-            return new CalendarEventDto
-            {
-                Id = e.Id,
-                Uuid = e.Uuid,
-                Title = e.Title,
-                Description = e.Description,
-                Location = e.Location,
-                EventType = e.EventType,
-                StartDateTime = e.StartDateTime,
-                EndDateTime = e.EndDateTime,
-                IsAllDay = e.IsAllDay,
-                Color = e.Color,
-                MatterId = e.MatterId,
-                MatterTitle = e.Matter?.Title,
-                ContactId = e.ContactId,
-                ContactName = e.Contact != null ? $"{e.Contact.FirstName} {e.Contact.LastName}" : null,
-                CreatedBy = e.CreatedBy,
-                Attendees = e.Attendees.Select(a => new EventAttendeeDto
-                {
-                    UserId = a.UserId,
-                    AttendeeType = a.AttendeeType,
-                    ResponseStatus = a.ResponseStatus
-                }).ToList(),
-                CreatedAt = e.CreatedAt,
-                UpdatedAt = e.UpdatedAt
-            };
         }
     }
 }

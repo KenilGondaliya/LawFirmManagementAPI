@@ -66,10 +66,10 @@ namespace LawFirmAPI.Services
 
             var bills = await query
                 .OrderByDescending(b => b.CreatedAt)
-                .Select(b => MapToDto(b))
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return bills;
+            // ✅ SECOND: Map to DTO in memory
+            return bills.Select(b => MapToDto(b)).ToList();
         }
 
         public async Task<BillDto?> GetBillById(long id, long firmId)
@@ -198,7 +198,7 @@ namespace LawFirmAPI.Services
                 throw new KeyNotFoundException("Bill not found");
 
             bill.StatusId = statusId;
-            
+
             var status = await _context.BillStatuses.FindAsync(statusId);
             if (status != null && status.Name == "Sent" && !bill.SentAt.HasValue)
                 bill.SentAt = DateTime.UtcNow;
@@ -248,21 +248,21 @@ namespace LawFirmAPI.Services
             var items = await _context.BillItems
                 .Where(i => i.BillId == billId)
                 .OrderBy(i => i.ItemOrder)
-                .Select(i => new BillItemDto
-                {
-                    Id = i.Id,
-                    Description = i.Description,
-                    Quantity = i.Quantity,
-                    UnitPrice = i.UnitPrice,
-                    TaxRate = i.TaxRate,
-                    DiscountPercentage = i.DiscountPercentage,
-                    Amount = i.Amount,
-                    TotalAmount = i.TotalAmount,
-                    ItemOrder = i.ItemOrder
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return items;
+            // ✅ SECOND: Map to DTO in memory
+            return items.Select(i => new BillItemDto
+            {
+                Id = i.Id,
+                Description = i.Description,
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice,
+                TaxRate = i.TaxRate,
+                DiscountPercentage = i.DiscountPercentage,
+                Amount = i.Amount,
+                TotalAmount = i.TotalAmount,
+                ItemOrder = i.ItemOrder
+            }).ToList();
         }
 
         public async Task<BillItemDto> AddBillItem(long billId, long firmId, CreateBillItemDto itemDto)
@@ -286,11 +286,11 @@ namespace LawFirmAPI.Services
             };
 
             _context.BillItems.Add(item);
-            
+
             // Update bill subtotal and total
             bill.Subtotal += item.Amount;
             bill.TotalAmount = bill.Subtotal + bill.TaxAmount - bill.DiscountAmount;
-            
+
             await _context.SaveChangesAsync();
 
             return new BillItemDto
@@ -334,22 +334,22 @@ namespace LawFirmAPI.Services
             var payments = await _context.Payments
                 .Where(p => p.BillId == billId && p.FirmId == firmId)
                 .OrderByDescending(p => p.PaymentDate)
-                .Select(p => new PaymentDto
-                {
-                    Id = p.Id,
-                    Uuid = p.Uuid,
-                    PaymentNumber = p.PaymentNumber,
-                    PaymentDate = p.PaymentDate,
-                    Amount = p.Amount,
-                    PaymentMethod = p.PaymentMethod,
-                    ReferenceNumber = p.ReferenceNumber,
-                    Notes = p.Notes,
-                    ReceivedBy = p.ReceivedBy,
-                    CreatedAt = p.CreatedAt
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return payments;
+            // ✅ SECOND: Map to DTO in memory
+            return payments.Select(p => new PaymentDto
+            {
+                Id = p.Id,
+                Uuid = p.Uuid,
+                PaymentNumber = p.PaymentNumber,
+                PaymentDate = p.PaymentDate,
+                Amount = p.Amount,
+                PaymentMethod = p.PaymentMethod,
+                ReferenceNumber = p.ReferenceNumber,
+                Notes = p.Notes,
+                ReceivedBy = p.ReceivedBy,
+                CreatedAt = p.CreatedAt
+            }).ToList();
         }
 
         public async Task<PaymentDto> AddPayment(long billId, long firmId, long userId, AddPaymentDto paymentDto)
@@ -378,14 +378,14 @@ namespace LawFirmAPI.Services
             };
 
             _context.Payments.Add(payment);
-            
+
             // Update bill paid amount
             var totalPaid = (await _context.Payments
                 .Where(p => p.BillId == billId)
                 .SumAsync(p => p.Amount)) + paymentDto.Amount;
-            
+
             bill.PaidAmount = totalPaid;
-            
+
             // Update bill status
             if (totalPaid >= bill.TotalAmount)
             {
@@ -396,7 +396,7 @@ namespace LawFirmAPI.Services
             {
                 bill.StatusId = 3; // Partial Paid
             }
-            
+
             await _context.SaveChangesAsync();
 
             return new PaymentDto
@@ -452,16 +452,16 @@ namespace LawFirmAPI.Services
         {
             var statuses = await _context.BillStatuses
                 .Where(bs => bs.FirmId == firmId)
-                .Select(bs => new BillStatusDto
-                {
-                    Id = bs.Id,
-                    Name = bs.Name,
-                    Color = bs.Color,
-                    IsDefault = bs.IsDefault
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return statuses;
+            // ✅ SECOND: Map to DTO in memory
+            return statuses.Select(bs => new BillStatusDto
+            {
+                Id = bs.Id,
+                Name = bs.Name,
+                Color = bs.Color,
+                IsDefault = bs.IsDefault
+            }).ToList();
         }
 
         public async Task<BillingDashboardDto> GetBillingDashboard(long firmId)
@@ -548,22 +548,23 @@ namespace LawFirmAPI.Services
             var invoices = await _context.Invoices
                 .Where(i => i.FirmId == firmId)
                 .OrderByDescending(i => i.InvoiceDate)
-                .Select(i => new InvoiceDto
-                {
-                    Id = i.Id,
-                    InvoiceNumber = i.InvoiceNumber,
-                    InvoiceDate = i.InvoiceDate,
-                    DueDate = i.DueDate,
-                    Amount = i.Amount,
-                    Status = i.Status,
-                    PaymentMethod = i.PaymentMethod,
-                    TransactionId = i.TransactionId,
-                    CreatedAt = i.CreatedAt
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return invoices;
+            // ✅ SECOND: Map to DTO in memory
+            return invoices.Select(i => new InvoiceDto
+            {
+                Id = i.Id,
+                InvoiceNumber = i.InvoiceNumber,
+                InvoiceDate = i.InvoiceDate,
+                DueDate = i.DueDate,
+                Amount = i.Amount,
+                Status = i.Status,
+                PaymentMethod = i.PaymentMethod,
+                TransactionId = i.TransactionId,
+                CreatedAt = i.CreatedAt
+            }).ToList();
         }
+
 
         public async Task<InvoiceDto> GenerateInvoice(long firmId, long billId)
         {

@@ -65,18 +65,18 @@ namespace LawFirmAPI.Services
 
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(d => 
-                    d.Title.Contains(search) || 
+                query = query.Where(d =>
+                    d.Title.Contains(search) ||
                     d.FileName.Contains(search) ||
                     (d.Description != null && d.Description.Contains(search)));
             }
 
             var documents = await query
                 .OrderByDescending(d => d.UploadedAt)
-                .Select(d => MapToDto(d))
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return documents;
+            // ✅ SECOND: Map to DTO in memory
+            return documents.Select(d => MapToDto(d)).ToList();
         }
 
         public async Task<DocumentDto?> GetDocumentById(long id, long firmId)
@@ -204,7 +204,7 @@ namespace LawFirmAPI.Services
             };
 
             _context.DocumentVersions.Add(version);
-            
+
             // Update current document
             document.Version = newVersion;
             document.FileName = file.FileName;
@@ -231,18 +231,18 @@ namespace LawFirmAPI.Services
             var versions = await _context.DocumentVersions
                 .Where(v => v.DocumentId == documentId)
                 .OrderByDescending(v => v.Version)
-                .Select(v => new DocumentVersionDto
-                {
-                    Id = v.Id,
-                    Version = v.Version,
-                    FileName = v.FileName,
-                    FileSize = v.FileSize,
-                    ChangeSummary = v.ChangeSummary,
-                    UploadedAt = v.UploadedAt
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return versions;
+            // ✅ SECOND: Map to DTO in memory
+            return versions.Select(v => new DocumentVersionDto
+            {
+                Id = v.Id,
+                Version = v.Version,
+                FileName = v.FileName,
+                FileSize = v.FileSize,
+                ChangeSummary = v.ChangeSummary,
+                UploadedAt = v.UploadedAt
+            }).ToList();
         }
 
         public async Task<DocumentShareDto> ShareDocument(long documentId, long firmId, long userId, long? sharedWithUserId, string? sharedWithEmail, string permission, int? expiresInDays)
@@ -390,18 +390,18 @@ namespace LawFirmAPI.Services
         {
             var types = await _context.DocumentTypes
                 .Where(dt => dt.FirmId == firmId)
-                .Select(dt => new DocumentTypeDto
-                {
-                    Id = dt.Id,
-                    Name = dt.Name,
-                    Category = dt.Category,
-                    Description = dt.Description,
-                    Icon = dt.Icon,
-                    IsTemplate = dt.IsTemplate
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return types;
+            // ✅ SECOND: Map to DTO in memory
+            return types.Select(dt => new DocumentTypeDto
+            {
+                Id = dt.Id,
+                Name = dt.Name,
+                Category = dt.Category,
+                Description = dt.Description,
+                Icon = dt.Icon,
+                IsTemplate = dt.IsTemplate
+            }).ToList();
         }
 
         public async Task<DocumentTypeDto> CreateDocumentType(long firmId, CreateDocumentTypeDto createDto)
@@ -441,19 +441,18 @@ namespace LawFirmAPI.Services
             else
                 query = query.Where(f => f.ParentFolderId == null);
 
-            var folders = await query
-                .Select(f => new FolderDto
-                {
-                    Id = f.Id,
-                    Name = f.Name,
-                    Description = f.Description,
-                    ParentFolderId = f.ParentFolderId,
-                    Path = f.Path,
-                    CreatedAt = f.CreatedAt
-                })
-                .ToListAsync();
+            var folders = await query.ToListAsync();  // ✅ FIRST: Get data from database
 
-            return folders;
+            // ✅ SECOND: Map to DTO in memory
+            return folders.Select(f => new FolderDto
+            {
+                Id = f.Id,
+                Name = f.Name,
+                Description = f.Description,
+                ParentFolderId = f.ParentFolderId,
+                Path = f.Path,
+                CreatedAt = f.CreatedAt
+            }).ToList();
         }
 
         public async Task<FolderDto> CreateFolder(long firmId, long userId, CreateFolderDto createDto)
@@ -503,26 +502,26 @@ namespace LawFirmAPI.Services
         public async Task<List<TemplateDto>> GetTemplates(long firmId, string? category)
         {
             var query = _context.DocumentTemplates
+                .Include(t => t.DocumentType)
                 .Where(t => t.FirmId == firmId);
 
             if (!string.IsNullOrEmpty(category))
                 query = query.Where(t => t.DocumentType != null && t.DocumentType.Category == category);
 
-            var templates = await query
-                .Select(t => new TemplateDto
-                {
-                    Id = t.Id,
-                    Name = t.Name,
-                    Description = t.Description,
-                    DocumentTypeId = t.DocumentTypeId,
-                    DocumentTypeName = t.DocumentType != null ? t.DocumentType.Name : null,
-                    PreviewImage = t.PreviewImage,
-                    UsageCount = t.UsageCount,
-                    CreatedAt = t.CreatedAt
-                })
-                .ToListAsync();
+            var templates = await query.ToListAsync();  // ✅ FIRST: Get data from database
 
-            return templates;
+            // ✅ SECOND: Map to DTO in memory
+            return templates.Select(t => new TemplateDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Description = t.Description,
+                DocumentTypeId = t.DocumentTypeId,
+                DocumentTypeName = t.DocumentType?.Name,
+                PreviewImage = t.PreviewImage,
+                UsageCount = t.UsageCount,
+                CreatedAt = t.CreatedAt
+            }).ToList();
         }
 
         public async Task<TemplateDto> CreateTemplate(long firmId, long userId, CreateTemplateDto createDto)

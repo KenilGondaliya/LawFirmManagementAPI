@@ -10,6 +10,9 @@ using LawFirmAPI.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
+
 // Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -35,7 +38,6 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-
 
 
 // Database - PostgreSQL

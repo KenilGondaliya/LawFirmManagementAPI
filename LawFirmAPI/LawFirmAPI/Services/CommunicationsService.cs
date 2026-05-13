@@ -55,23 +55,23 @@ namespace LawFirmAPI.Services
 
             var threads = await query
                 .OrderByDescending(t => t.LastMessageAt)
-                .Select(t => new MessageThreadDto
-                {
-                    Id = t.Id,
-                    Uuid = t.Uuid,
-                    Subject = t.Subject,
-                    ThreadType = t.ThreadType,
-                    MatterId = t.MatterId,
-                    MatterTitle = t.Matter != null ? t.Matter.Title : null,
-                    ContactId = t.ContactId,
-                    ContactName = t.Contact != null ? $"{t.Contact.FirstName} {t.Contact.LastName}" : null,
-                    LastMessageAt = t.LastMessageAt,
-                    CreatedAt = t.CreatedAt,
-                    MessageCount = _context.Communications.Count(c => c.ThreadId == t.Id && !c.IsTrash)
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return threads;
+            // ✅ SECOND: Map to DTO in memory
+            return threads.Select(t => new MessageThreadDto
+            {
+                Id = t.Id,
+                Uuid = t.Uuid,
+                Subject = t.Subject,
+                ThreadType = t.ThreadType,
+                MatterId = t.MatterId,
+                MatterTitle = t.Matter?.Title,
+                ContactId = t.ContactId,
+                ContactName = t.Contact != null ? $"{t.Contact.FirstName} {t.Contact.LastName}" : null,
+                LastMessageAt = t.LastMessageAt,
+                CreatedAt = t.CreatedAt,
+                MessageCount = _context.Communications.Count(c => c.ThreadId == t.Id && !c.IsTrash)
+            }).ToList();
         }
 
         public async Task<MessageThreadDto?> GetThreadById(long threadId, long firmId)
@@ -104,8 +104,8 @@ namespace LawFirmAPI.Services
             // Create or get thread
             long threadId;
             var existingThread = await _context.CommunicationThreads
-                .FirstOrDefaultAsync(t => t.FirmId == firmId && 
-                                          t.MatterId == sendDto.MatterId && 
+                .FirstOrDefaultAsync(t => t.FirmId == firmId &&
+                                          t.MatterId == sendDto.MatterId &&
                                           t.ContactId == sendDto.ContactId &&
                                           t.Status == "ACTIVE");
 
@@ -152,7 +152,7 @@ namespace LawFirmAPI.Services
             };
 
             _context.Communications.Add(message);
-            
+
             // Update thread last message time
             var thread = await _context.CommunicationThreads.FindAsync(threadId);
             if (thread != null)
@@ -227,7 +227,7 @@ namespace LawFirmAPI.Services
             };
 
             _context.Communications.Add(message);
-            
+
             // Update thread
             thread.LastMessageAt = DateTime.UtcNow;
             thread.UpdatedAt = DateTime.UtcNow;
@@ -287,10 +287,10 @@ namespace LawFirmAPI.Services
                 .Include(m => m.Recipients)
                 .Where(m => m.ThreadId == threadId && !m.IsTrash)
                 .OrderBy(m => m.SentAt)
-                .Select(m => MapToMessageDto(m))
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return messages;
+            // ✅ SECOND: Map to DTO in memory
+            return messages.Select(m => MapToMessageDto(m)).ToList();
         }
 
         public async Task<List<MessageDto>> GetMessagesByMatter(long matterId, long firmId)
@@ -303,10 +303,10 @@ namespace LawFirmAPI.Services
             var messages = await _context.Communications
                 .Where(m => threadIds.Contains(m.ThreadId) && !m.IsTrash)
                 .OrderByDescending(m => m.SentAt)
-                .Select(m => MapToMessageDto(m))
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return messages;
+            // ✅ SECOND: Map to DTO in memory
+            return messages.Select(m => MapToMessageDto(m)).ToList();
         }
 
         public async Task<List<MessageDto>> GetMessagesByContact(long contactId, long firmId)
@@ -319,10 +319,10 @@ namespace LawFirmAPI.Services
             var messages = await _context.Communications
                 .Where(m => threadIds.Contains(m.ThreadId) && !m.IsTrash)
                 .OrderByDescending(m => m.SentAt)
-                .Select(m => MapToMessageDto(m))
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return messages;
+            // ✅ SECOND: Map to DTO in memory
+            return messages.Select(m => MapToMessageDto(m)).ToList();
         }
 
         public async Task<EmailIntegrationDto> ConnectEmail(long firmId, long userId, ConnectEmailDto connectDto)
@@ -416,20 +416,21 @@ namespace LawFirmAPI.Services
         {
             var templates = await _context.EmailTemplates
                 .Where(t => t.FirmId == firmId)
-                .Select(t => new EmailTemplateDto
-                {
-                    Id = t.Id,
-                    Name = t.Name,
-                    Subject = t.Subject,
-                    Body = t.Body,
-                    Category = t.Category,
-                    IsShared = t.IsShared,
-                    CreatedAt = t.CreatedAt
-                })
-                .ToListAsync();
+                .ToListAsync();  // ✅ FIRST: Get data from database
 
-            return templates;
+            // ✅ SECOND: Map to DTO in memory
+            return templates.Select(t => new EmailTemplateDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Subject = t.Subject,
+                Body = t.Body,
+                Category = t.Category,
+                IsShared = t.IsShared,
+                CreatedAt = t.CreatedAt
+            }).ToList();
         }
+
 
         public async Task<EmailTemplateDto> CreateEmailTemplate(long firmId, long userId, CreateEmailTemplateDto createDto)
         {

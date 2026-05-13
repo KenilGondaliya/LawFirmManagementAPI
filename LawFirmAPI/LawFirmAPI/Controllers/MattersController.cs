@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using LawFirmAPI.Services;
 using LawFirmAPI.Models.DTOs;
+using LawFirmAPI.Models.Entities;
 
 namespace LawFirmAPI.Controllers
 {
@@ -181,10 +182,24 @@ namespace LawFirmAPI.Controllers
         [HttpPost("practice-areas")]
         public async Task<IActionResult> CreatePracticeArea([FromBody] CreatePracticeAreaDto createDto)
         {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var area = await _mattersService.CreatePracticeArea(firmId, createDto);
-            return Ok(new { message = "Practice area created successfully", area });
+            if (createDto == null)
+                return BadRequest(new { message = "Request body is empty" });
+
+            if (string.IsNullOrWhiteSpace(createDto.Name))
+                return BadRequest(new { message = "Practice area name is required" });
+
+            try
+            {
+                var firmId = await _firmContextService.GetCurrentFirmId();
+                var area = await _mattersService.CreatePracticeArea(firmId, createDto);
+                return Ok(new { message = "Practice area created successfully", area });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
         }
+
 
         // Filters
         [HttpGet("open")]
