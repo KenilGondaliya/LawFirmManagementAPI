@@ -13,7 +13,6 @@ export interface User {
   lastLoginAt?: string;
 }
 
-
 export interface Firm {
   id: number;
   name: string;
@@ -353,13 +352,6 @@ export interface Task {
   createdAt: string;
 }
 
-export interface TaskAssignee {
-  userId: number;
-  userName: string;
-  isPrimary: boolean;
-  assignedAt: string;
-}
-
 export interface CalendarEvent {
   id: number;
   uuid: string;
@@ -380,7 +372,6 @@ export interface CalendarEvent {
   createdAt: string;
   updatedAt: string;
 }
-
 
 export interface EventAttendee {
   userId: number;
@@ -651,11 +642,59 @@ export interface BillingDashboard {
   };
 }
 
+export interface Task {
+  id: number;
+  uuid: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  dueTime?: string;
+  estimatedHours?: number;
+  actualHours?: number;
+  isRecurring: boolean;
+  parentTaskId?: number;
+  statusId: number;
+  statusName: string;
+  statusColor?: string;
+  priorityId: number;
+  priorityName: string;
+  priorityColor?: string;
+  priorityLevel: number;
+  matterId?: number;
+  matterTitle?: string;
+  contactId?: number;
+  contactName?: string;
+  completedAt?: string;
+  assignees: TaskAssignee[];
+  comments: TaskComment[];
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaskAssignee {
+  id?: number;
+  userId: number;
+  userName?: string;
+  isPrimary: boolean;
+  assignedAt: string;
+}
+
+export interface TaskComment {
+  id: number;
+  comment: string;
+  userId: number;
+  userName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TaskStatus {
   id: number;
   name: string;
   color?: string;
   isDefault: boolean;
+  createdAt: string;
 }
 
 export interface TaskPriority {
@@ -663,6 +702,7 @@ export interface TaskPriority {
   name: string;
   color?: string;
   level: number;
+  createdAt: string;
 }
 
 export interface TaskStats {
@@ -676,6 +716,23 @@ export interface TaskStats {
   myCompletedTasks: number;
   myPendingTasks: number;
 }
+
+export interface CreateTaskDto {
+  title: string;
+  description?: string;
+  matterId?: number;
+  contactId?: number;
+  statusId: number;
+  priorityId: number;
+  dueDate?: string;
+  dueTime?: string;
+  estimatedHours?: number;
+  isRecurring?: boolean;
+  assigneeIds?: number[];
+  primaryAssigneeId?: number;
+  reminderMinutes?: number;
+}
+
 
 export interface ContactStats {
   total: number;

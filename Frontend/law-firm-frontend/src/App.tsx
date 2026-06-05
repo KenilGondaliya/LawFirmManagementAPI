@@ -11,7 +11,6 @@ import { Register } from "./pages/Auth/Register";
 import { CreateFirm } from "./pages/Auth/CreateFirm";
 import ResetPassword from "./pages/Auth/ResetPassword";
 import { Dashboard } from "./pages/Dashboard/Dashboard";
-import TasksList from "./pages/Tasks/TasksList";
 import DocumentsList from "./pages/Documents/DocumentsList";
 import CommunicationsList from "./pages/Communications/CommunicationsList";
 import BillsList from "./pages/Billing/BillsList";
@@ -30,6 +29,10 @@ import { EventEdit } from "./pages/Calendar/EventEdit";
 import { MattersList } from "./pages/Matters/MattersList";
 import { MatterDetail } from "./pages/Matters/MatterDetail";
 import { CreateMatter } from "./pages/Matters/CreateMatter";
+import { TaskDetail } from "./pages/Tasks/TaskDetail";
+import { CreateTask } from "./pages/Tasks/CreateTask";
+import { EditTask } from "./pages/Tasks/EditTask";
+import { TasksList } from "./pages/Tasks/TasksList";
 
 // Main Pages
 
@@ -90,6 +93,10 @@ function App() {
           <Route path="/calendar/events/:id/edit" element={<EventEdit />} />
 
           <Route path="/tasks" element={<TasksList />} />
+          <Route path="/tasks/:id" element={<TaskDetail />} />
+          <Route path="/tasks/create" element={<CreateTask />} />
+          <Route path="/tasks/:id/edit" element={<EditTask />} />
+
           <Route path="/documents" element={<DocumentsList />} />
           <Route path="/communications" element={<CommunicationsList />} />
           <Route path="/billing" element={<BillsList />} />

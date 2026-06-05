@@ -48,21 +48,93 @@ namespace LawFirmAPI.Services
 
             using var smtp = new SmtpClient();
             await smtp.ConnectAsync(smtpServer, smtpPort, SecureSocketOptions.StartTls);
-            
+
             if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
             {
                 await smtp.AuthenticateAsync(username, password);
             }
-            
+
             await smtp.SendAsync(email);
             await smtp.DisconnectAsync(true);
         }
+
+        public async Task SendEmailMessage(string toEmail, string subject, string body, string fromName, string fromEmail)
+        {
+            var htmlBody = $@"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #1a56db; color: white; padding: 20px; text-align: center; }}
+                .content {{ padding: 20px; }}
+                .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>Law Firm Management System</h2>
+                </div>
+                <div class='content'>
+                    <p><strong>From:</strong> {fromName} ({fromEmail})</p>
+                    <p><strong>Subject:</strong> {subject}</p>
+                    <hr/>
+                    <div style='white-space: pre-wrap;'>{body}</div>
+                </div>
+                <div class='footer'>
+                    <p>This message was sent from Law Firm Management System</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    ";
+
+            await SendEmail(toEmail, subject, htmlBody);
+        }
+
+        public async Task SendRawEmail(string toEmail, string subject, string body, string fromName, string fromEmail)
+        {
+            var htmlBody = $@"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset='UTF-8'>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background-color: #1a56db; color: white; padding: 20px; text-align: center; }}
+                .content {{ padding: 20px; }}
+                .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+            </style>
+        </head>
+        <body>
+            <div class='container'>
+                <div class='header'>
+                    <h2>Law Firm Management System</h2>
+                </div>
+                <div class='content'>
+                    {body}
+                </div>
+                <div class='footer'>
+                    <p>© 2024 Law Firm Management System. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    ";
+
+            await SendEmail(toEmail, subject, htmlBody);
+        }
+
+
 
         public async Task SendVerificationEmail(string toEmail, string verificationToken)
         {
             var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
             var verificationLink = $"{appUrl}/verify-email?token={verificationToken}";
-            
+
             var htmlBody = $@"
                 <!DOCTYPE html>
                 <html>
@@ -105,7 +177,7 @@ namespace LawFirmAPI.Services
         {
             var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
             var resetLink = $"{appUrl}/reset-password?token={resetToken}";
-            
+
             var htmlBody = $@"
                 <!DOCTYPE html>
                 <html>
@@ -150,7 +222,7 @@ namespace LawFirmAPI.Services
         public async Task SendWelcomeEmail(string toEmail, string tempPassword, string firstName)
         {
             var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
-            
+
             var htmlBody = $@"
                 <!DOCTYPE html>
                 <html>
@@ -199,7 +271,7 @@ namespace LawFirmAPI.Services
         {
             var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
             var acceptInviteLink = $"{appUrl}/accept-invite?email={toEmail}&firmId={firmId}";
-            
+
             var htmlBody = $@"
                 <!DOCTYPE html>
                 <html>
@@ -242,7 +314,7 @@ namespace LawFirmAPI.Services
         public async Task SendBillEmail(string toEmail, string billNumber, byte[] pdfBytes)
         {
             var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
-            
+
             var htmlBody = $@"
                 <!DOCTYPE html>
                 <html>

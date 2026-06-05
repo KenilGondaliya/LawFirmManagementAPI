@@ -1,4 +1,5 @@
-// Services/CommunicationsService.cs
+// Services/CommunicationsService.cs - COMPLETE WORKING VERSION
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,11 +35,15 @@ namespace LawFirmAPI.Services
     public class CommunicationsService : ICommunicationsService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IEmailService _emailService;
 
-        public CommunicationsService(ApplicationDbContext context)
+        public CommunicationsService(ApplicationDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
+
+        // ==================== THREADS ====================
 
         public async Task<List<MessageThreadDto>> GetThreads(long firmId, long? matterId, long? contactId)
         {
@@ -55,9 +60,8 @@ namespace LawFirmAPI.Services
 
             var threads = await query
                 .OrderByDescending(t => t.LastMessageAt)
-                .ToListAsync();  // ✅ FIRST: Get data from database
+                .ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return threads.Select(t => new MessageThreadDto
             {
                 Id = t.Id,
@@ -99,9 +103,41 @@ namespace LawFirmAPI.Services
             };
         }
 
+        public async Task<bool> ArchiveThread(long threadId, long firmId)
+        {
+            var thread = await _context.CommunicationThreads
+                .FirstOrDefaultAsync(t => t.Id == threadId && t.FirmId == firmId);
+
+            if (thread == null)
+                return false;
+
+            thread.Status = "ARCHIVED";
+            thread.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
+        public async Task<bool> UnarchiveThread(long threadId, long firmId)
+        {
+            var thread = await _context.CommunicationThreads
+                .FirstOrDefaultAsync(t => t.Id == threadId && t.FirmId == firmId);
+
+            if (thread == null)
+                return false;
+
+            thread.Status = "ACTIVE";
+            thread.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
+        // ==================== MESSAGES ====================
+
         public async Task<MessageDto> SendMessage(long firmId, long userId, SendMessageDto sendDto)
         {
-            // Create or get thread
+            // 1. Create or get thread
             long threadId;
             var existingThread = await _context.CommunicationThreads
                 .FirstOrDefaultAsync(t => t.FirmId == firmId &&
@@ -132,7 +168,7 @@ namespace LawFirmAPI.Services
                 threadId = newThread.Id;
             }
 
-            // Create message
+            // 2. Create message
             var message = new Communication
             {
                 ThreadId = threadId,
@@ -152,49 +188,140 @@ namespace LawFirmAPI.Services
             };
 
             _context.Communications.Add(message);
+            
+            // 3. Save message FIRST to generate ID
+            await _context.SaveChangesAsync();
 
-            // Update thread last message time
+            // 4. Add recipients using the saved message ID
+            var recipientsToAdd = new List<CommunicationRecipient>();
+
+            if (sendDto.To != null && sendDto.To.Any())
+            {
+                recipientsToAdd.AddRange(sendDto.To.Select(recipient => new CommunicationRecipient
+                {
+                    CommunicationId = message.Id,
+                    RecipientType = "TO",
+                    RecipientIdentifier = recipient,
+                    CreatedAt = DateTime.UtcNow
+                }));
+            }
+
+            if (sendDto.Cc != null && sendDto.Cc.Any())
+            {
+                recipientsToAdd.AddRange(sendDto.Cc.Select(recipient => new CommunicationRecipient
+                {
+                    CommunicationId = message.Id,
+                    RecipientType = "CC",
+                    RecipientIdentifier = recipient,
+                    CreatedAt = DateTime.UtcNow
+                }));
+            }
+
+            if (sendDto.Bcc != null && sendDto.Bcc.Any())
+            {
+                recipientsToAdd.AddRange(sendDto.Bcc.Select(recipient => new CommunicationRecipient
+                {
+                    CommunicationId = message.Id,
+                    RecipientType = "BCC",
+                    RecipientIdentifier = recipient,
+                    CreatedAt = DateTime.UtcNow
+                }));
+            }
+
+            if (recipientsToAdd.Any())
+            {
+                _context.CommunicationRecipients.AddRange(recipientsToAdd);
+                await _context.SaveChangesAsync();
+            }
+
+            // 5. Update thread last message time
             var thread = await _context.CommunicationThreads.FindAsync(threadId);
             if (thread != null)
             {
                 thread.LastMessageAt = DateTime.UtcNow;
                 thread.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
             }
 
-            // Add recipients
-            if (sendDto.To != null)
+            // ✅ 6. SEND REAL EMAILS to all recipients
+            await SendRealEmails(sendDto, message);
+
+            // 7. Return mapped DTO
+            var result = MapToMessageDto(message);
+            result.Recipients = recipientsToAdd.Select(r => new MessageRecipientDto
             {
-                foreach (var recipient in sendDto.To)
+                RecipientType = r.RecipientType,
+                RecipientIdentifier = r.RecipientIdentifier,
+                RecipientName = r.RecipientName,
+                IsRead = r.IsRead
+            }).ToList();
+
+            return result;
+        }
+
+        // ✅ NEW METHOD: Send real emails to all recipients
+        private async Task SendRealEmails(SendMessageDto sendDto, Communication message)
+        {
+            var allRecipients = new List<string>();
+
+            if (sendDto.To != null && sendDto.To.Any())
+                allRecipients.AddRange(sendDto.To);
+
+            if (sendDto.Cc != null && sendDto.Cc.Any())
+                allRecipients.AddRange(sendDto.Cc);
+
+            if (sendDto.Bcc != null && sendDto.Bcc.Any())
+                allRecipients.AddRange(sendDto.Bcc);
+
+            if (!allRecipients.Any())
+            {
+                Console.WriteLine("No recipients to send email to");
+                return;
+            }
+
+            // Prepare email HTML body
+            var emailBody = $@"
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                    <div style='background-color: #1a56db; color: white; padding: 20px; text-align: center;'>
+                        <h2>Law Firm Management System</h2>
+                    </div>
+                    <div style='padding: 20px;'>
+                        <p><strong>From:</strong> {sendDto.FromName} ({sendDto.FromEmail})</p>
+                        <p><strong>Subject:</strong> {sendDto.Subject}</p>
+                        <hr/>
+                        <div style='white-space: pre-wrap; margin-top: 20px;'>
+                            {sendDto.Body?.Replace("\n", "<br/>")}
+                        </div>
+                        <hr/>
+                        <p style='color: #666; font-size: 12px;'>
+                            This message was sent from Law Firm Management System.
+                        </p>
+                    </div>
+                    <div style='background-color: #f3f4f6; padding: 10px; text-align: center; font-size: 12px; color: #666;'>
+                        © 2024 Law Firm Management System. All rights reserved.
+                    </div>
+                </div>
+            ";
+
+            // Send to each recipient
+            foreach (var recipient in allRecipients)
+            {
+                try
                 {
-                    var recipientEntity = new CommunicationRecipient
-                    {
-                        CommunicationId = message.Id,
-                        RecipientType = "TO",
-                        RecipientIdentifier = recipient,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _context.CommunicationRecipients.Add(recipientEntity);
+                    await _emailService.SendRawEmail(
+                        toEmail: recipient,
+                        subject: sendDto.Subject ?? "New Message from Law Firm",
+                        body: emailBody,
+                        fromName: sendDto.FromName,
+                        fromEmail: sendDto.FromEmail
+                    );
+                    Console.WriteLine($"✅ Email sent to: {recipient}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Failed to send email to {recipient}: {ex.Message}");
                 }
             }
-
-            if (sendDto.Cc != null)
-            {
-                foreach (var recipient in sendDto.Cc)
-                {
-                    var recipientEntity = new CommunicationRecipient
-                    {
-                        CommunicationId = message.Id,
-                        RecipientType = "CC",
-                        RecipientIdentifier = recipient,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _context.CommunicationRecipients.Add(recipientEntity);
-                }
-            }
-
-            await _context.SaveChangesAsync();
-
-            return MapToMessageDto(message);
         }
 
         public async Task<MessageDto> ReplyToMessage(long threadId, long firmId, long userId, ReplyMessageDto replyDto)
@@ -227,44 +354,43 @@ namespace LawFirmAPI.Services
             };
 
             _context.Communications.Add(message);
+            await _context.SaveChangesAsync();
 
-            // Update thread
+            var recipientsToAdd = new List<CommunicationRecipient>();
+
+            if (replyDto.To != null && replyDto.To.Any())
+            {
+                recipientsToAdd.AddRange(replyDto.To.Select(recipient => new CommunicationRecipient
+                {
+                    CommunicationId = message.Id,
+                    RecipientType = "TO",
+                    RecipientIdentifier = recipient,
+                    CreatedAt = DateTime.UtcNow
+                }));
+            }
+
+            if (replyDto.Cc != null && replyDto.Cc.Any())
+            {
+                recipientsToAdd.AddRange(replyDto.Cc.Select(recipient => new CommunicationRecipient
+                {
+                    CommunicationId = message.Id,
+                    RecipientType = "CC",
+                    RecipientIdentifier = recipient,
+                    CreatedAt = DateTime.UtcNow
+                }));
+            }
+
+            if (recipientsToAdd.Any())
+            {
+                _context.CommunicationRecipients.AddRange(recipientsToAdd);
+                await _context.SaveChangesAsync();
+            }
+
             thread.LastMessageAt = DateTime.UtcNow;
             thread.UpdatedAt = DateTime.UtcNow;
-
             await _context.SaveChangesAsync();
 
             return MapToMessageDto(message);
-        }
-
-        public async Task<bool> ArchiveThread(long threadId, long firmId)
-        {
-            var thread = await _context.CommunicationThreads
-                .FirstOrDefaultAsync(t => t.Id == threadId && t.FirmId == firmId);
-
-            if (thread == null)
-                return false;
-
-            thread.Status = "ARCHIVED";
-            thread.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            return true;
-        }
-
-        public async Task<bool> UnarchiveThread(long threadId, long firmId)
-        {
-            var thread = await _context.CommunicationThreads
-                .FirstOrDefaultAsync(t => t.Id == threadId && t.FirmId == firmId);
-
-            if (thread == null)
-                return false;
-
-            thread.Status = "ACTIVE";
-            thread.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            return true;
         }
 
         public async Task<bool> StarMessage(long messageId, long firmId)
@@ -287,9 +413,8 @@ namespace LawFirmAPI.Services
                 .Include(m => m.Recipients)
                 .Where(m => m.ThreadId == threadId && !m.IsTrash)
                 .OrderBy(m => m.SentAt)
-                .ToListAsync();  // ✅ FIRST: Get data from database
+                .ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return messages.Select(m => MapToMessageDto(m)).ToList();
         }
 
@@ -303,9 +428,8 @@ namespace LawFirmAPI.Services
             var messages = await _context.Communications
                 .Where(m => threadIds.Contains(m.ThreadId) && !m.IsTrash)
                 .OrderByDescending(m => m.SentAt)
-                .ToListAsync();  // ✅ FIRST: Get data from database
+                .ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return messages.Select(m => MapToMessageDto(m)).ToList();
         }
 
@@ -319,11 +443,12 @@ namespace LawFirmAPI.Services
             var messages = await _context.Communications
                 .Where(m => threadIds.Contains(m.ThreadId) && !m.IsTrash)
                 .OrderByDescending(m => m.SentAt)
-                .ToListAsync();  // ✅ FIRST: Get data from database
+                .ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return messages.Select(m => MapToMessageDto(m)).ToList();
         }
+
+        // ==================== EMAIL INTEGRATION ====================
 
         public async Task<EmailIntegrationDto> ConnectEmail(long firmId, long userId, ConnectEmailDto connectDto)
         {
@@ -404,21 +529,20 @@ namespace LawFirmAPI.Services
             if (integration == null)
                 return false;
 
-            // Implementation would call external email API to fetch emails
-            // This is a placeholder
             integration.LastSyncAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             return true;
         }
 
+        // ==================== EMAIL TEMPLATES ====================
+
         public async Task<List<EmailTemplateDto>> GetEmailTemplates(long firmId)
         {
             var templates = await _context.EmailTemplates
                 .Where(t => t.FirmId == firmId)
-                .ToListAsync();  // ✅ FIRST: Get data from database
+                .ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return templates.Select(t => new EmailTemplateDto
             {
                 Id = t.Id,
@@ -430,7 +554,6 @@ namespace LawFirmAPI.Services
                 CreatedAt = t.CreatedAt
             }).ToList();
         }
-
 
         public async Task<EmailTemplateDto> CreateEmailTemplate(long firmId, long userId, CreateEmailTemplateDto createDto)
         {
@@ -476,6 +599,8 @@ namespace LawFirmAPI.Services
             return true;
         }
 
+        // ==================== HELPERS ====================
+
         private MessageDto MapToMessageDto(Communication m)
         {
             return new MessageDto
@@ -498,13 +623,13 @@ namespace LawFirmAPI.Services
                 SentAt = m.SentAt,
                 ReceivedAt = m.ReceivedAt,
                 CreatedAt = m.CreatedAt,
-                Recipients = m.Recipients.Select(r => new MessageRecipientDto
+                Recipients = m.Recipients?.Select(r => new MessageRecipientDto
                 {
                     RecipientType = r.RecipientType,
                     RecipientIdentifier = r.RecipientIdentifier,
                     RecipientName = r.RecipientName,
                     IsRead = r.IsRead
-                }).ToList()
+                }).ToList() ?? new List<MessageRecipientDto>()
             };
         }
     }

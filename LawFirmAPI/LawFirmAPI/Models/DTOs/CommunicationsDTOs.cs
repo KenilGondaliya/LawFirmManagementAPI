@@ -58,7 +58,7 @@ namespace LawFirmAPI.Models.DTOs
         public string FromName { get; set; } = string.Empty;
         public List<string> To { get; set; } = new();
         public List<string>? Cc { get; set; }
-        public List<string>? Bcc { get; set; }
+        public List<string>? Bcc { get; set; }  // ✅ Add Bcc
         public long? MatterId { get; set; }
         public long? ContactId { get; set; }
         public string MessageType { get; set; } = "EMAIL";
@@ -72,6 +72,8 @@ namespace LawFirmAPI.Models.DTOs
         public string FromEmail { get; set; } = string.Empty;
         public string FromName { get; set; } = string.Empty;
         public string? Subject { get; set; }
+        public List<string>? To { get; set; }  // ✅ Add To for replies
+        public List<string>? Cc { get; set; }  // ✅ Add Cc for replies
         public List<IFormFile>? Attachments { get; set; }
     }
 

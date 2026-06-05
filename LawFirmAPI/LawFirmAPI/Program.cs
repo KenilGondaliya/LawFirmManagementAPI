@@ -51,6 +51,8 @@ if (string.IsNullOrEmpty(connectionString))
 
 Console.WriteLine($"Using connection string: {connectionString}");
 
+
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
