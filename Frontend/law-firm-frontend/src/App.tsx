@@ -13,7 +13,6 @@ import { CreateFirm } from "./pages/Auth/CreateFirm";
 import ResetPassword from "./pages/Auth/ResetPassword";
 import { SelectFirm } from "./pages/Auth/SelectFirm";
 import { Dashboard } from "./pages/Dashboard/Dashboard";
-import BillsList from "./pages/Billing/BillsList";
 import Profile from "./pages/Settings/Profile";
 import Team from "./pages/Settings/Team";
 import FirmSettings from "./pages/Settings/FirmSettings";
@@ -39,6 +38,9 @@ import { EmailTemplates } from "./pages/Communications/EmailTemplates";
 import { AuthGuard } from "./pages/Auth/AuthGuard";
 import { DocumentDetail } from "./pages/Documents/DocumentDetail";
 import { DocumentsList } from "./pages/Documents/DocumentsList";
+import { BillDetail } from "./pages/Billing/BillDetail";
+import { CreateBill } from "./pages/Billing/CreateBill";
+import { BillsList } from "./pages/Billing/BillsList";
 
 function App() {
   const { initializeAuth, isAuthenticated, isLoading } = useAuthStore();
@@ -63,26 +65,26 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Toaster 
+      <Toaster
         position="top-right"
         toastOptions={{
           duration: 4000,
           style: {
-            background: '#363636',
-            color: '#fff',
+            background: "#363636",
+            color: "#fff",
           },
           success: {
             duration: 3000,
             iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
+              primary: "#10b981",
+              secondary: "#fff",
             },
           },
           error: {
             duration: 4000,
             iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+              primary: "#ef4444",
+              secondary: "#fff",
             },
           },
         }}
@@ -96,37 +98,52 @@ function App() {
         <Route path="/select-firm" element={<SelectFirm />} />
 
         {/* Protected Routes with AuthGuard */}
-        <Route element={<AuthGuard><MainLayout /></AuthGuard>}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/matters" element={<MattersList />} />
-            <Route path="/matters/:id" element={<MatterDetail />} />
-            <Route path="/matters/create" element={<CreateMatter />} />
-            <Route path="/matters/:id/edit" element={<EditMatter />} />
-            <Route path="/contacts" element={<ContactsList />} />
-            <Route path="/contacts/:id" element={<ContactDetail />} />
-            <Route path="/contacts/create" element={<CreateContact />} />
-            <Route path="/contacts/:id/edit" element={<CreateContact />} />
-            <Route path="/calendar" element={<CalendarView />} />
-            <Route path="/calendar/events/create" element={<EventCreate />} />
-            <Route path="/calendar/events/:id" element={<EventView />} />
-            <Route path="/calendar/events/:id/edit" element={<EventEdit />} />
-            <Route path="/tasks" element={<TasksList />} />
-            <Route path="/tasks/:id" element={<TaskDetail />} />
-            <Route path="/tasks/create" element={<CreateTask />} />
-            <Route path="/tasks/:id/edit" element={<EditTask />} />
-            <Route path="/documents" element={<DocumentsList />} />
-            <Route path="/documents/:id" element={<DocumentDetail />} />
-            <Route path="/communications" element={<CommunicationsList />} />
-            <Route path="/communications/threads/:id" element={<ThreadDetail />} />
-            <Route path="/communications/templates" element={<EmailTemplates />} />
-            <Route path="/billing" element={<BillsList />} />
-            <Route path="/settings/profile" element={<Profile />} />
-            <Route path="/settings/team" element={<Team />} />
-            <Route path="/settings/firm" element={<FirmSettings />} />
-            <Route path="/settings/billing" element={<BillingSettings />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          element={
+            <AuthGuard>
+              <MainLayout />
+            </AuthGuard>
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/matters" element={<MattersList />} />
+          <Route path="/matters/:id" element={<MatterDetail />} />
+          <Route path="/matters/create" element={<CreateMatter />} />
+          <Route path="/matters/:id/edit" element={<EditMatter />} />
+          <Route path="/contacts" element={<ContactsList />} />
+          <Route path="/contacts/:id" element={<ContactDetail />} />
+          <Route path="/contacts/create" element={<CreateContact />} />
+          <Route path="/contacts/:id/edit" element={<CreateContact />} />
+          <Route path="/calendar" element={<CalendarView />} />
+          <Route path="/calendar/events/create" element={<EventCreate />} />
+          <Route path="/calendar/events/:id" element={<EventView />} />
+          <Route path="/calendar/events/:id/edit" element={<EventEdit />} />
+          <Route path="/tasks" element={<TasksList />} />
+          <Route path="/tasks/:id" element={<TaskDetail />} />
+          <Route path="/tasks/create" element={<CreateTask />} />
+          <Route path="/tasks/:id/edit" element={<EditTask />} />
+          <Route path="/documents" element={<DocumentsList />} />
+          <Route path="/documents/:id" element={<DocumentDetail />} />
+          <Route path="/communications" element={<CommunicationsList />} />
+          <Route
+            path="/communications/threads/:id"
+            element={<ThreadDetail />}
+          />
+          <Route
+            path="/communications/templates"
+            element={<EmailTemplates />}
+          />
+          <Route path="/billing" element={<BillsList />} />
+          <Route path="/billing/bills/:id" element={<BillDetail />} />
+          <Route path="/billing/create" element={<CreateBill />} />
+          <Route path="/billing/bills/:id/edit" element={<CreateBill />} />
+          <Route path="/settings/profile" element={<Profile />} />
+          <Route path="/settings/team" element={<Team />} />
+          <Route path="/settings/firm" element={<FirmSettings />} />
+          <Route path="/settings/billing" element={<BillingSettings />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
-        
+
         {/* Catch all - redirect to login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
