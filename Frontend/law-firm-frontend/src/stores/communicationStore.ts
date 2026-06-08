@@ -21,6 +21,9 @@ interface CommunicationState {
   emailStatus: EmailIntegrationStatus | null;
   isLoading: boolean;
   isSending: boolean;
+  isSyncing: boolean;
+  lastSyncTime: Date | null;
+  unreadCount: number;
 
   // Thread Actions
   fetchThreads: (params?: {
@@ -46,10 +49,10 @@ interface CommunicationState {
   fetchEmailStatus: () => Promise<void>;
   connectEmail: (data: {
     emailAddress: string;
+    password: string;
     provider: string;
-    accessToken: string;
-    refreshToken: string;
-    expiresAt: string;
+    imapHost?: string;
+    imapPort?: number;
   }) => Promise<void>;
   disconnectEmail: () => Promise<void>;
   syncEmails: () => Promise<void>;
@@ -85,6 +88,9 @@ export const useCommunicationStore = create<CommunicationState>()(
     emailStatus: null,
     isLoading: false,
     isSending: false,
+    isSyncing: false,
+    lastSyncTime: null,
+    unreadCount: 0,
 
     // ==================== Thread Actions ====================
 
@@ -143,8 +149,7 @@ export const useCommunicationStore = create<CommunicationState>()(
     fetchMessagesByThread: async (threadId) => {
       set({ isLoading: true });
       try {
-        const messages =
-          await communicationService.getMessagesByThread(threadId);
+        const messages = await communicationService.getMessagesByThread(threadId);
         set({ messages, isLoading: false });
       } catch (error) {
         console.error("Failed to fetch messages:", error);
@@ -156,8 +161,7 @@ export const useCommunicationStore = create<CommunicationState>()(
     fetchMessagesByMatter: async (matterId) => {
       set({ isLoading: true });
       try {
-        const messages =
-          await communicationService.getMessagesByMatter(matterId);
+        const messages = await communicationService.getMessagesByMatter(matterId);
         set({ messages, isLoading: false });
       } catch (error) {
         console.error("Failed to fetch messages:", error);
@@ -169,8 +173,7 @@ export const useCommunicationStore = create<CommunicationState>()(
     fetchMessagesByContact: async (contactId) => {
       set({ isLoading: true });
       try {
-        const messages =
-          await communicationService.getMessagesByContact(contactId);
+        const messages = await communicationService.getMessagesByContact(contactId);
         set({ messages, isLoading: false });
       } catch (error) {
         console.error("Failed to fetch messages:", error);
@@ -204,10 +207,7 @@ export const useCommunicationStore = create<CommunicationState>()(
     replyToMessage: async (messageId, data) => {
       set({ isSending: true });
       try {
-        const message = await communicationService.replyToMessage(
-          messageId,
-          data,
-        );
+        const message = await communicationService.replyToMessage(messageId, data);
         // Refresh current thread messages
         const { selectedThread } = get();
         if (selectedThread) {
@@ -229,7 +229,7 @@ export const useCommunicationStore = create<CommunicationState>()(
         await communicationService.starMessage(messageId);
         set((state) => ({
           messages: state.messages.map((m) =>
-            m.id === messageId ? { ...m, isStarred: !m.isStarred } : m,
+            m.id === messageId ? { ...m, isStarred: !m.isStarred } : m
           ),
         }));
       } catch (error) {
@@ -289,17 +289,19 @@ export const useCommunicationStore = create<CommunicationState>()(
     },
 
     syncEmails: async () => {
-      set({ isLoading: true });
+      set({ isSyncing: true });
       try {
         await communicationService.syncEmails();
+        set({ lastSyncTime: new Date(), isSyncing: false });
         toast.success("Emails synced successfully");
         // Refresh threads after sync
         await get().fetchThreads();
-        set({ isLoading: false });
+        await get().fetchEmailStatus();
+        set({ isSyncing: false });
       } catch (error) {
         console.error("Failed to sync emails:", error);
         toast.error("Failed to sync emails");
-        set({ isLoading: false });
+        set({ isSyncing: false });
       }
     },
 
@@ -338,16 +340,15 @@ export const useCommunicationStore = create<CommunicationState>()(
     updateTemplate: async (id, data) => {
       set({ isLoading: true });
       try {
-        // Note: You'll need to add this endpoint to your service
-        // For now, we'll just update locally
+        const template = await communicationService.updateEmailTemplate(id, data);
         set((state) => ({
           templates: state.templates.map((t) =>
-            t.id === id ? { ...t, ...data } : t,
+            t.id === id ? { ...t, ...data } : t
           ),
           isLoading: false,
         }));
         toast.success("Template updated successfully");
-        return { id, ...data } as EmailTemplate;
+        return template;
       } catch (error) {
         console.error("Failed to update template:", error);
         toast.error("Failed to update template");
@@ -391,7 +392,10 @@ export const useCommunicationStore = create<CommunicationState>()(
         emailStatus: null,
         isLoading: false,
         isSending: false,
+        isSyncing: false,
+        lastSyncTime: null,
+        unreadCount: 0,
       });
     },
-  })),
+  }))
 );

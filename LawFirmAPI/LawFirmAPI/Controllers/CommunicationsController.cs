@@ -4,6 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using LawFirmAPI.Services;
 using LawFirmAPI.Models.DTOs;
+using MailKit.Net.Imap;
+using MailKit;
+using MailKit.Search;
+
 
 namespace LawFirmAPI.Controllers
 {
@@ -15,10 +19,13 @@ namespace LawFirmAPI.Controllers
         private readonly ICommunicationsService _communicationsService;
         private readonly IFirmContextService _firmContextService;
 
-        public CommunicationsController(ICommunicationsService communicationsService, IFirmContextService firmContextService)
+        private readonly IEmailSyncService _emailSyncService;
+
+        public CommunicationsController(ICommunicationsService communicationsService, IFirmContextService firmContextService, IEmailSyncService emailSyncService)
         {
             _communicationsService = communicationsService;
             _firmContextService = firmContextService;
+            _emailSyncService = emailSyncService;
         }
 
         // Threads
@@ -65,7 +72,7 @@ namespace LawFirmAPI.Controllers
         public async Task<IActionResult> GetMessages([FromQuery] long? threadId, [FromQuery] long? matterId, [FromQuery] long? contactId)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
-            
+
             if (threadId.HasValue)
             {
                 var messages = await _communicationsService.GetMessagesByThread(threadId.Value, firmId);
@@ -81,7 +88,7 @@ namespace LawFirmAPI.Controllers
                 var messages = await _communicationsService.GetMessagesByContact(contactId.Value, firmId);
                 return Ok(messages);
             }
-            
+
             return Ok(new List<object>());
         }
 
@@ -128,16 +135,39 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Message starred status updated" });
         }
 
-        // Email Integration
+        // Controllers/CommunicationsController.cs
         [HttpPost("email/connect")]
         public async Task<IActionResult> ConnectEmail([FromBody] ConnectEmailDto connectDto)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
             var userId = await _firmContextService.GetCurrentUserId();
-            var integration = await _communicationsService.ConnectEmail(firmId, userId, connectDto);
-            return Ok(new { message = "Email connected successfully", integration });
+
+            var success = await _emailSyncService.ConnectEmailAsync(
+                userId, firmId,
+                connectDto.EmailAddress,
+                connectDto.Password,
+                connectDto.Provider);
+
+            if (!success)
+                return BadRequest(new { message = "Failed to connect. Check your email and app password." });
+
+            return Ok(new { message = "Email connected successfully" });
         }
 
+        [HttpPost("email/sync")]
+        public async Task<IActionResult> SyncEmails()
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var userId = await _firmContextService.GetCurrentUserId();
+
+            var syncedCount = await _emailSyncService.SyncEmailsAsync(userId, firmId);
+
+            return Ok(new
+            {
+                message = $"Synced {syncedCount} emails",
+                synced = syncedCount
+            });
+        }
         [HttpDelete("email/disconnect")]
         public async Task<IActionResult> DisconnectEmail()
         {
@@ -149,6 +179,86 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Email disconnected successfully" });
         }
 
+        // Controllers/CommunicationsController.cs - Fixed debug method
+        [HttpGet("debug/gmail-emails")]
+        public async Task<IActionResult> DebugGetGmailEmails([FromQuery] int limit = 20)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var userId = await _firmContextService.GetCurrentUserId();
+
+            // Get the actual EmailIntegration entity
+            var integration = await _communicationsService.GetEmailIntegrationEntity(firmId, userId);
+
+            if (integration == null)
+                return BadRequest(new { message = "No email connected. Please connect your email first." });
+
+            if (string.IsNullOrEmpty(integration.PasswordEncrypted))
+                return BadRequest(new { message = "Email password not found. Please reconnect your email." });
+
+            try
+            {
+                Console.WriteLine($"Connecting to IMAP for: {integration.EmailAddress}");
+
+                using var client = new ImapClient();
+                await client.ConnectAsync(integration.ImapHost ?? "imap.gmail.com", integration.ImapPort ?? 993, true);
+                await client.AuthenticateAsync(integration.EmailAddress, integration.PasswordEncrypted);
+
+                var inbox = client.Inbox;
+                await inbox.OpenAsync(FolderAccess.ReadOnly);
+
+                // Get ALL emails
+                var allUids = await inbox.SearchAsync(SearchQuery.All);
+
+                Console.WriteLine($"Total emails in Gmail: {allUids.Count}");
+
+                var emails = new List<object>();
+
+                // Get last 'limit' emails (newest first)
+                int startIndex = Math.Max(0, allUids.Count - limit);
+                for (int i = allUids.Count - 1; i >= startIndex; i--)
+                {
+                    var message = await inbox.GetMessageAsync(allUids[i]);
+                    emails.Add(new
+                    {
+                        Subject = message.Subject ?? "(No Subject)",
+                        From = message.From.ToString(),
+                        To = message.To.ToString(),
+                        Date = message.Date.ToString("yyyy-MM-dd HH:mm:ss"),
+                        DateUtc = message.Date.UtcDateTime,
+                        HasBody = !string.IsNullOrEmpty(message.TextBody),
+                        MessageId = message.MessageId
+                    });
+                }
+
+                await client.DisconnectAsync(true);
+
+                return Ok(new
+                {
+                    success = true,
+                    totalEmails = allUids.Count,
+                    emailsShown = emails.Count,
+                    emails = emails,
+                    integration = new
+                    {
+                        email = integration.EmailAddress,
+                        lastSyncAt = integration.LastSyncAt,
+                        provider = integration.Provider,
+                        imapHost = integration.ImapHost,
+                        imapPort = integration.ImapPort
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return BadRequest(new
+                {
+                    success = false,
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
         [HttpGet("email/status")]
         public async Task<IActionResult> GetEmailStatus()
         {
@@ -156,17 +266,6 @@ namespace LawFirmAPI.Controllers
             var userId = await _firmContextService.GetCurrentUserId();
             var status = await _communicationsService.GetEmailIntegrationStatus(firmId, userId);
             return Ok(status);
-        }
-
-        [HttpPost("email/sync")]
-        public async Task<IActionResult> SyncEmails()
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var userId = await _firmContextService.GetCurrentUserId();
-            var result = await _communicationsService.SyncEmails(firmId, userId);
-            if (!result)
-                return BadRequest(new { message = "Failed to sync emails" });
-            return Ok(new { message = "Emails synced successfully" });
         }
 
         // Templates

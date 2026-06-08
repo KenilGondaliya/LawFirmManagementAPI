@@ -1,6 +1,6 @@
 // src/pages/Communications/modals/ComposeMessageModal.tsx
 import React, { useState, useEffect } from 'react';
-import { XMarkIcon, PlusIcon, TrashIcon, PaperClipIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { useCommunicationStore } from '../../stores/communicationStore';
 import { useMatterStore } from '../../stores/matterStore';
 import { useContactStore } from '../../stores/contactStore';
@@ -36,7 +36,6 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
-  const [attachments, setAttachments] = useState<File[]>([]);
   
   const [formData, setFormData] = useState({
     to: [''],
@@ -83,17 +82,8 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
     }));
   };
 
-  const handleAttachmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setAttachments([...attachments, ...Array.from(e.target.files)]);
-    }
-  };
-
-  const removeAttachment = (index: number) => {
-    setAttachments(attachments.filter((_, i) => i !== index));
-  };
-
   const handleSubmit = async () => {
+    // Validate required fields
     const toEmails = formData.to.filter(e => e.trim());
     if (toEmails.length === 0) {
       toast.error('Please enter at least one recipient');
@@ -115,8 +105,8 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
           subject: formData.subject,
           to: toEmails,
           cc: formData.cc.filter(e => e.trim()),
-          attachments: attachments,
         });
+        toast.success('Reply sent successfully');
       } else {
         await sendMessage({
           subject: formData.subject,
@@ -128,11 +118,14 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
           bcc: formData.bcc.filter(e => e.trim()),
           matterId: formData.matterId,
           contactId: formData.contactId,
-          attachments: attachments,
+          messageType: 'EMAIL',
         });
+        toast.success('Message sent successfully');
       }
+      
       onSuccess();
       onClose();
+      
       // Reset form
       setFormData({
         to: [''],
@@ -143,20 +136,44 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
         matterId: undefined,
         contactId: undefined,
       });
-      setAttachments([]);
-    } catch (error) {
+      setShowCc(false);
+      setShowBcc(false);
+    } catch (error: any) {
       console.error('Failed to send message:', error);
+      const errorMsg = error.response?.data?.message || error.response?.data?.title || 'Failed to send message';
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      to: [''],
+      cc: [''],
+      bcc: [''],
+      subject: '',
+      body: '',
+      matterId: undefined,
+      contactId: undefined,
+    });
+    setShowCc(false);
+    setShowBcc(false);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={replyTo ? 'Reply to Message' : 'New Message'} size="lg">
+    <Modal isOpen={isOpen} onClose={handleClose} title={replyTo ? 'Reply to Message' : 'New Message'} size="lg">
       <div className="space-y-4">
         {/* To Field */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">To *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            To <span className="text-red-500">*</span>
+          </label>
           {formData.to.map((email, index) => (
             <div key={index} className="flex gap-2 mb-2">
               <input
@@ -164,13 +181,13 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
                 value={email}
                 onChange={(e) => handleRecipientChange('to', index, e.target.value)}
                 placeholder="recipient@example.com"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"
               />
               {formData.to.length > 1 && (
                 <button
                   type="button"
                   onClick={() => handleRemoveRecipient('to', index)}
-                  className="text-red-500 hover:text-red-700"
+                  className="p-2 text-red-500 hover:text-red-700 transition-colors"
                 >
                   <TrashIcon className="w-5 h-5" />
                 </button>
@@ -180,7 +197,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
           <button
             type="button"
             onClick={() => handleAddRecipient('to')}
-            className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 mt-1"
+            className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 mt-1 transition-colors"
           >
             <PlusIcon className="w-4 h-4" />
             Add recipient
@@ -192,14 +209,14 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
           <button
             type="button"
             onClick={() => setShowCc(!showCc)}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             {showCc ? 'Hide Cc' : 'Show Cc'}
           </button>
           <button
             type="button"
             onClick={() => setShowBcc(!showBcc)}
-            className="text-sm text-gray-500 hover:text-gray-700"
+            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
           >
             {showBcc ? 'Hide Bcc' : 'Show Bcc'}
           </button>
@@ -216,13 +233,13 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
                   value={email}
                   onChange={(e) => handleRecipientChange('cc', index, e.target.value)}
                   placeholder="cc@example.com"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"
                 />
                 {formData.cc.length > 1 && (
                   <button
                     type="button"
                     onClick={() => handleRemoveRecipient('cc', index)}
-                    className="text-red-500 hover:text-red-700"
+                    className="p-2 text-red-500 hover:text-red-700 transition-colors"
                   >
                     <TrashIcon className="w-5 h-5" />
                   </button>
@@ -232,7 +249,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
             <button
               type="button"
               onClick={() => handleAddRecipient('cc')}
-              className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 mt-1"
+              className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 mt-1 transition-colors"
             >
               <PlusIcon className="w-4 h-4" />
               Add Cc
@@ -251,13 +268,13 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
                   value={email}
                   onChange={(e) => handleRecipientChange('bcc', index, e.target.value)}
                   placeholder="bcc@example.com"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"
                 />
                 {formData.bcc.length > 1 && (
                   <button
                     type="button"
                     onClick={() => handleRemoveRecipient('bcc', index)}
-                    className="text-red-500 hover:text-red-700"
+                    className="p-2 text-red-500 hover:text-red-700 transition-colors"
                   >
                     <TrashIcon className="w-5 h-5" />
                   </button>
@@ -267,7 +284,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
             <button
               type="button"
               onClick={() => handleAddRecipient('bcc')}
-              className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 mt-1"
+              className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 mt-1 transition-colors"
             >
               <PlusIcon className="w-4 h-4" />
               Add Bcc
@@ -284,13 +301,13 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
         />
 
         {/* Related Matter & Contact */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Related Matter</label>
             <select
               value={formData.matterId || ''}
               onChange={(e) => setFormData({ ...formData, matterId: e.target.value ? parseInt(e.target.value) : undefined })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"
             >
               <option value="">None</option>
               {matters.map((matter) => (
@@ -305,7 +322,7 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
             <select
               value={formData.contactId || ''}
               onChange={(e) => setFormData({ ...formData, contactId: e.target.value ? parseInt(e.target.value) : undefined })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"
             >
               <option value="">None</option>
               {contacts.map((contact) => (
@@ -319,53 +336,21 @@ export const ComposeMessageModal: React.FC<ComposeMessageModalProps> = ({
 
         {/* Message Body */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Message <span className="text-red-500">*</span>
+          </label>
           <textarea
             value={formData.body}
             onChange={(e) => setFormData({ ...formData, body: e.target.value })}
             rows={8}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none resize-y"
             placeholder="Write your message here..."
           />
         </div>
 
-        {/* Attachments */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Attachments</label>
-          <div className="flex items-center gap-2">
-            <label className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg transition-colors">
-              <PaperClipIcon className="w-4 h-4 inline mr-2" />
-              Add Files
-              <input
-                type="file"
-                multiple
-                onChange={handleAttachmentChange}
-                className="hidden"
-              />
-            </label>
-            <span className="text-sm text-gray-500">{attachments.length} file(s) selected</span>
-          </div>
-          {attachments.length > 0 && (
-            <div className="mt-2 space-y-1">
-              {attachments.map((file, index) => (
-                <div key={index} className="flex items-center justify-between text-sm bg-gray-50 p-2 rounded">
-                  <span>{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
-                  <button
-                    type="button"
-                    onClick={() => removeAttachment(index)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         {/* Actions */}
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
           <Button onClick={handleSubmit} isLoading={isSubmitting}>

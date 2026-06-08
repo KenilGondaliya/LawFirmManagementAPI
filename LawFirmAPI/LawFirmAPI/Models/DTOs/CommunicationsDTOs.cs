@@ -84,13 +84,29 @@ namespace LawFirmAPI.Models.DTOs
         public bool IsConnected { get; set; }
     }
 
+    // public class ConnectEmailDto
+    // {
+    //     public string EmailAddress { get; set; } = string.Empty;
+    //     public string Provider { get; set; } = string.Empty;
+    //     public string AccessToken { get; set; } = string.Empty;
+    //     public string RefreshToken { get; set; } = string.Empty;
+    //     public DateTime ExpiresAt { get; set; }
+    // }
+
     public class ConnectEmailDto
     {
         public string EmailAddress { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
         public string Provider { get; set; } = string.Empty;
-        public string AccessToken { get; set; } = string.Empty;
-        public string RefreshToken { get; set; } = string.Empty;
-        public DateTime ExpiresAt { get; set; }
+        public string? ImapHost { get; set; }
+        public int? ImapPort { get; set; }
+        public string? SmtpHost { get; set; }
+        public int? SmtpPort { get; set; }
+
+        // OAuth fields (optional, for OAuth2 authentication)
+        public string? AccessToken { get; set; }
+        public string? RefreshToken { get; set; }
+        public DateTime? ExpiresAt { get; set; }
     }
 
     public class EmailIntegrationStatusDto
@@ -100,6 +116,9 @@ namespace LawFirmAPI.Models.DTOs
         public string? Provider { get; set; }
         public DateTime? LastSyncAt { get; set; }
         public bool SyncEnabled { get; set; }
+        public string? PasswordEncrypted { get; set; }  // Add this
+        public string? ImapHost { get; set; }           // Add this
+        public int? ImapPort { get; set; }              // Add this
     }
 
     public class EmailTemplateDto

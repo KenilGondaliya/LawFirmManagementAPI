@@ -1,11 +1,6 @@
 // src/pages/Communications/EmailTemplates.tsx
 import React, { useEffect, useState } from 'react';
-import {
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  DocumentDuplicateIcon,
-} from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import { useCommunicationStore } from '../../stores/communicationStore';
 import { Button } from '../../components/UI/Button';
 import { Card } from '../../components/UI/Card';
@@ -53,11 +48,9 @@ export const EmailTemplates: React.FC = () => {
   };
 
   const handleUseTemplate = (template: any) => {
-    // Copy to clipboard or open compose with template
     navigator.clipboard.writeText(template.body);
     toast.success('Template copied to clipboard');
   };
-
 
   if (isLoading) {
     return (

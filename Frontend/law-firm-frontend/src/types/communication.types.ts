@@ -53,7 +53,6 @@ export interface SendMessageDto {
   matterId?: number;
   contactId?: number;
   messageType?: string;
-  attachments?: File[];
 }
 
 export interface ReplyMessageDto {
@@ -64,13 +63,6 @@ export interface ReplyMessageDto {
   subject?: string;
   to?: string[];
   cc?: string[];
-  attachments?: File[];
-}
-
-export interface EmailIntegration {
-  emailAddress: string;
-  provider: string;
-  isConnected: boolean;
 }
 
 export interface EmailIntegrationStatus {

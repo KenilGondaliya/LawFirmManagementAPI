@@ -5,7 +5,6 @@ import {
   Message,
   SendMessageDto,
   ReplyMessageDto,
-  EmailIntegration,
   EmailIntegrationStatus,
   EmailTemplate,
   CreateEmailTemplateDto,
@@ -38,30 +37,22 @@ export const communicationService = {
   // ==================== Messages ====================
 
   getMessagesByThread: async (threadId: number): Promise<Message[]> => {
-    const response = await api.get(
-      `/communications/messages?threadId=${threadId}`,
-    );
+    const response = await api.get(`/communications/messages?threadId=${threadId}`);
     return response.data;
   },
 
   getMessagesByMatter: async (matterId: number): Promise<Message[]> => {
-    const response = await api.get(
-      `/communications/messages?matterId=${matterId}`,
-    );
+    const response = await api.get(`/communications/messages?matterId=${matterId}`);
     return response.data;
   },
 
   getMessagesByContact: async (contactId: number): Promise<Message[]> => {
-    const response = await api.get(
-      `/communications/messages?contactId=${contactId}`,
-    );
+    const response = await api.get(`/communications/messages?contactId=${contactId}`);
     return response.data;
   },
 
-  // src/services/communication.service.ts - Fix sendMessage
   sendMessage: async (data: SendMessageDto): Promise<Message> => {
     try {
-      // Send as JSON, not FormData
       const payload = {
         subject: data.subject || "",
         body: data.body,
@@ -83,10 +74,9 @@ export const communicationService = {
     }
   },
 
-  // Fix replyToMessage
   replyToMessage: async (
     messageId: number,
-    data: ReplyMessageDto,
+    data: ReplyMessageDto
   ): Promise<Message> => {
     try {
       const payload = {
@@ -99,10 +89,7 @@ export const communicationService = {
         cc: data.cc || [],
       };
 
-      const response = await api.post(
-        `/communications/messages/${messageId}/reply`,
-        payload,
-      );
+      const response = await api.post(`/communications/messages/${messageId}/reply`, payload);
       return response.data;
     } catch (error: any) {
       console.error("Failed to send reply:", error);
@@ -118,17 +105,30 @@ export const communicationService = {
 
   connectEmail: async (data: {
     emailAddress: string;
+    password: string;
     provider: string;
-    accessToken: string;
-    refreshToken: string;
-    expiresAt: string;
-  }): Promise<EmailIntegration> => {
-    const response = await api.post("/communications/email/connect", data);
-    return response.data;
+    imapHost?: string;
+    imapPort?: number;
+  }): Promise<{ message: string }> => {
+    try {
+      const payload = {
+        emailAddress: data.emailAddress,
+        password: data.password,
+        provider: data.provider,
+        imapHost: data.imapHost || "imap.gmail.com",
+        imapPort: data.imapPort || 993,
+      };
+      const response = await api.post("/communications/email/connect", payload);
+      return response.data;
+    } catch (error: any) {
+      console.error("Failed to connect email:", error);
+      throw error;
+    }
   },
 
-  disconnectEmail: async (): Promise<void> => {
-    await api.delete("/communications/email/disconnect");
+  disconnectEmail: async (): Promise<{ message: string }> => {
+    const response = await api.delete("/communications/email/disconnect");
+    return response.data;
   },
 
   getEmailStatus: async (): Promise<EmailIntegrationStatus> => {
@@ -136,8 +136,9 @@ export const communicationService = {
     return response.data;
   },
 
-  syncEmails: async (): Promise<void> => {
-    await api.post("/communications/email/sync");
+  syncEmails: async (): Promise<{ message: string; synced: number }> => {
+    const response = await api.post("/communications/email/sync");
+    return response.data;
   },
 
   // ==================== Email Templates ====================
@@ -147,23 +148,29 @@ export const communicationService = {
     return response.data;
   },
 
-  createEmailTemplate: async (
-    data: CreateEmailTemplateDto,
-  ): Promise<EmailTemplate> => {
+  createEmailTemplate: async (data: CreateEmailTemplateDto): Promise<EmailTemplate> => {
     const response = await api.post("/communications/templates", data);
     return response.data;
   },
 
   updateEmailTemplate: async (
     id: number,
-    data: Partial<CreateEmailTemplateDto>,
+    data: Partial<CreateEmailTemplateDto>
   ): Promise<EmailTemplate> => {
     const response = await api.put(`/communications/templates/${id}`, data);
     return response.data;
   },
 
-  deleteEmailTemplate: async (id: number): Promise<void> => {
-    await api.delete(`/communications/templates/${id}`);
+  deleteEmailTemplate: async (id: number): Promise<{ message: string }> => {
+    const response = await api.delete(`/communications/templates/${id}`);
+    return response.data;
+  },
+
+  // ==================== Debug ====================
+
+  debugGetGmailEmails: async (limit: number = 20): Promise<any> => {
+    const response = await api.get(`/communications/debug/gmail-emails?limit=${limit}`);
+    return response.data;
   },
 
   // ==================== Context Based ====================
@@ -173,9 +180,7 @@ export const communicationService = {
     return response.data;
   },
 
-  getMessagesByContactContext: async (
-    contactId: number,
-  ): Promise<Message[]> => {
+  getMessagesByContactContext: async (contactId: number): Promise<Message[]> => {
     const response = await api.get(`/communications/by-contact/${contactId}`);
     return response.data;
   },

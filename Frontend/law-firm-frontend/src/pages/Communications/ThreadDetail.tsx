@@ -5,12 +5,10 @@ import {
   ArrowLeftIcon,
   StarIcon,
   ArchiveBoxIcon,
-  TrashIcon,
   UserIcon,
   BriefcaseIcon,
   ClockIcon,
   EnvelopeIcon,
-  PaperClipIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { useCommunicationStore } from '../../stores/communicationStore';
@@ -116,9 +114,15 @@ export const ThreadDetail: React.FC = () => {
                 </span>
               )}
               <span className="flex items-center gap-1">
-                <ClockIcon className="w-4 h-4" />
-                {selectedThread.lastMessageAt && format(new Date(selectedThread.lastMessageAt), 'PPP')}
+                <EnvelopeIcon className="w-4 h-4" />
+                {selectedThread.threadType}
               </span>
+              {selectedThread.lastMessageAt && (
+                <span className="flex items-center gap-1">
+                  <ClockIcon className="w-4 h-4" />
+                  {format(new Date(selectedThread.lastMessageAt), 'PPP')}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -133,7 +137,10 @@ export const ThreadDetail: React.FC = () => {
       {/* Messages */}
       <div className="space-y-4">
         {messages.map((message) => (
-          <Card key={message.id} className="p-6">
+          <Card 
+            key={message.id} 
+            className={`p-6 ${!message.isRead ? 'bg-blue-50 border-l-4 border-l-primary-500' : ''}`}
+          >
             {/* Message Header */}
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -146,6 +153,11 @@ export const ThreadDetail: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-gray-900">{message.senderName || message.senderEmail}</p>
                     <p className="text-sm text-gray-500">&lt;{message.senderEmail}&gt;</p>
+                    {!message.isRead && (
+                      <span className="px-2 py-0.5 text-xs bg-primary-100 text-primary-700 rounded-full">
+                        Unread
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400">
                     {message.sentAt && format(new Date(message.sentAt), 'PPP p')}

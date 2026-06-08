@@ -98,6 +98,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFirmContextService, FirmContextService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IEmailSyncService, EmailSyncService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPdfService, PdfService>();

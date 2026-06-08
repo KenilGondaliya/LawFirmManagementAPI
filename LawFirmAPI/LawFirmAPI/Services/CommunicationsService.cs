@@ -30,6 +30,7 @@ namespace LawFirmAPI.Services
         Task<List<EmailTemplateDto>> GetEmailTemplates(long firmId);
         Task<EmailTemplateDto> CreateEmailTemplate(long firmId, long userId, CreateEmailTemplateDto createDto);
         Task<bool> DeleteEmailTemplate(long templateId, long firmId);
+        Task<EmailIntegration?> GetEmailIntegrationEntity(long firmId, long userId);
     }
 
     public class CommunicationsService : ICommunicationsService
@@ -433,37 +434,81 @@ namespace LawFirmAPI.Services
         }
 
         // Email Integration methods (simplified)
+
+        public async Task<EmailIntegration?> GetEmailIntegrationAsync(long firmId)
+        {
+            return await _context.EmailIntegrations
+                .FirstOrDefaultAsync(e => e.FirmId == firmId);
+        }
         public async Task<EmailIntegrationDto> ConnectEmail(long firmId, long userId, ConnectEmailDto connectDto)
         {
-            var existing = await _context.EmailIntegrations.FirstOrDefaultAsync(e => e.UserId == userId && e.FirmId == firmId);
+            var existing = await _context.EmailIntegrations
+                .FirstOrDefaultAsync(e => e.UserId == userId && e.FirmId == firmId);
+
             if (existing != null)
             {
                 existing.EmailAddress = connectDto.EmailAddress;
                 existing.Provider = connectDto.Provider;
-                existing.AccessToken = connectDto.AccessToken;
-                existing.RefreshToken = connectDto.RefreshToken;
-                existing.ExpiresAt = connectDto.ExpiresAt;
+                existing.ImapHost = connectDto.ImapHost;
+                existing.ImapPort = connectDto.ImapPort;
+                existing.SmtpHost = connectDto.SmtpHost;
+                existing.SmtpPort = connectDto.SmtpPort;
+
+                // Store password if provided (for IMAP authentication)
+                if (!string.IsNullOrEmpty(connectDto.Password))
+                {
+                    existing.PasswordEncrypted = connectDto.Password;
+                }
+
+                // Only update OAuth fields if they are provided
+                if (connectDto.AccessToken != null)
+                    existing.AccessToken = connectDto.AccessToken;
+                if (connectDto.RefreshToken != null)
+                    existing.RefreshToken = connectDto.RefreshToken;
+                if (connectDto.ExpiresAt.HasValue)
+                    existing.ExpiresAt = connectDto.ExpiresAt;
+
                 existing.UpdatedAt = DateTime.UtcNow;
             }
             else
             {
-                _context.EmailIntegrations.Add(new EmailIntegration
+                var integration = new EmailIntegration
                 {
                     UserId = userId,
                     FirmId = firmId,
                     EmailAddress = connectDto.EmailAddress,
                     Provider = connectDto.Provider,
+                    ImapHost = connectDto.ImapHost ?? "imap.gmail.com",
+                    ImapPort = connectDto.ImapPort ?? 993,
+                    SmtpHost = connectDto.SmtpHost ?? "smtp.gmail.com",
+                    SmtpPort = connectDto.SmtpPort ?? 587,
+                    PasswordEncrypted = connectDto.Password,
                     AccessToken = connectDto.AccessToken,
                     RefreshToken = connectDto.RefreshToken,
                     ExpiresAt = connectDto.ExpiresAt,
                     SyncEnabled = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
-                });
+                };
+                _context.EmailIntegrations.Add(integration);
             }
+
             await _context.SaveChangesAsync();
-            return new EmailIntegrationDto { EmailAddress = connectDto.EmailAddress, Provider = connectDto.Provider, IsConnected = true };
+
+            return new EmailIntegrationDto
+            {
+                EmailAddress = connectDto.EmailAddress,
+                Provider = connectDto.Provider,
+                IsConnected = true
+            };
         }
+
+        public async Task<EmailIntegration?> GetEmailIntegrationEntity(long firmId, long userId)
+        {
+            return await _context.EmailIntegrations
+                .FirstOrDefaultAsync(e => e.UserId == userId && e.FirmId == firmId);
+        }
+
 
         public async Task<bool> DisconnectEmail(long firmId, long userId)
         {
@@ -474,16 +519,22 @@ namespace LawFirmAPI.Services
             return true;
         }
 
+        // Services/CommunicationsService.cs - Update GetEmailIntegrationStatus
         public async Task<EmailIntegrationStatusDto> GetEmailIntegrationStatus(long firmId, long userId)
         {
-            var integration = await _context.EmailIntegrations.FirstOrDefaultAsync(e => e.UserId == userId && e.FirmId == firmId);
+            var integration = await _context.EmailIntegrations
+                .FirstOrDefaultAsync(e => e.UserId == userId && e.FirmId == firmId);
+
             return new EmailIntegrationStatusDto
             {
                 IsConnected = integration != null,
                 EmailAddress = integration?.EmailAddress,
                 Provider = integration?.Provider,
                 LastSyncAt = integration?.LastSyncAt,
-                SyncEnabled = integration?.SyncEnabled ?? false
+                SyncEnabled = integration?.SyncEnabled ?? false,
+                PasswordEncrypted = integration?.PasswordEncrypted,  // Add this
+                ImapHost = integration?.ImapHost,                    // Add this
+                ImapPort = integration?.ImapPort                     // Add this
             };
         }
 

@@ -9,7 +9,7 @@ import {
   UserIcon,
   BriefcaseIcon,
   ClockIcon,
-  PaperAirplaneIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { useCommunicationStore } from '../../stores/communicationStore';
 import { useMatterStore } from '../../stores/matterStore';
@@ -21,8 +21,8 @@ import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { EmptyState } from '../../components/Common/EmptyState';
 import { formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
-import { ComposeMessageModal } from './EmailIntegration';
 import { ConnectEmailModal } from './ConnectEmailModal';
+import { ComposeMessageModal } from './EmailIntegration';
 
 export const CommunicationsList: React.FC = () => {
   const navigate = useNavigate();
@@ -33,7 +33,8 @@ export const CommunicationsList: React.FC = () => {
     archiveThread, 
     emailStatus, 
     fetchEmailStatus,
-    syncEmails 
+    syncEmails,
+    isSyncing
   } = useCommunicationStore();
   const { matters, fetchMatters } = useMatterStore();
   const { contacts, fetchContacts } = useContactStore();
@@ -44,14 +45,35 @@ export const CommunicationsList: React.FC = () => {
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    fetchThreads({ matterId: filterMatter || undefined, contactId: filterContact || undefined });
-    fetchMatters({});
-    fetchContacts({});
-    fetchEmailStatus();
+    loadData();
   }, [filterMatter, filterContact]);
+
+  const loadData = async () => {
+    try {
+      await Promise.all([
+        fetchThreads({ matterId: filterMatter || undefined, contactId: filterContact || undefined }),
+        fetchMatters({}),
+        fetchContacts({}),
+        fetchEmailStatus()
+      ]);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      toast.error('Failed to load communications');
+    }
+  };
+
+  const handleSync = async () => {
+    try {
+      await syncEmails();
+      await fetchThreads({ matterId: filterMatter || undefined, contactId: filterContact || undefined });
+      toast.success('Emails synced successfully');
+    } catch (error) {
+      console.error('Sync failed:', error);
+      toast.error('Failed to sync emails');
+    }
+  };
 
   const filteredThreads = threads.filter(thread => 
     !searchTerm || 
@@ -62,19 +84,11 @@ export const CommunicationsList: React.FC = () => {
 
   const handleArchive = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    await archiveThread(id);
-  };
-
-  const handleSyncEmails = async () => {
-    setIsSyncing(true);
     try {
-      await syncEmails();
-      await fetchThreads();
-      toast.success('Emails synced successfully');
+      await archiveThread(id);
+      toast.success('Conversation archived');
     } catch (error) {
-      toast.error('Failed to sync emails');
-    } finally {
-      setIsSyncing(false);
+      toast.error('Failed to archive conversation');
     }
   };
 
@@ -85,6 +99,15 @@ export const CommunicationsList: React.FC = () => {
   };
 
   const hasActiveFilters = filterMatter !== null || filterContact !== null || searchTerm;
+
+  // Show loading state
+  if (isLoading && threads.length === 0) {
+    return (
+      <div className="flex justify-center items-center min-h-[400px]">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -115,9 +138,9 @@ export const CommunicationsList: React.FC = () => {
                 {emailStatus.emailAddress && (
                   <p className="text-sm text-gray-600">{emailStatus.emailAddress}</p>
                 )}
-                {!emailStatus.isConnected && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Connect your email to sync messages and send emails directly from the platform
+                {emailStatus.lastSyncAt && (
+                  <p className="text-xs text-gray-500">
+                    Last sync: {formatDistanceToNow(new Date(emailStatus.lastSyncAt), { addSuffix: true })}
                   </p>
                 )}
               </div>
@@ -132,17 +155,14 @@ export const CommunicationsList: React.FC = () => {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={handleSyncEmails} 
+                    onClick={handleSync} 
                     isLoading={isSyncing}
                     disabled={isSyncing}
                   >
-                    Sync Now
+                    <ArrowPathIcon className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Syncing...' : 'Sync Now'}
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setShowConnectModal(true)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => setShowConnectModal(true)}>
                     Settings
                   </Button>
                 </>
@@ -165,7 +185,6 @@ export const CommunicationsList: React.FC = () => {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-              <MagnifyingGlassIcon className="w-4 h-4 mr-2" />
               Filters
               {hasActiveFilters && <span className="ml-2 w-2 h-2 bg-primary-500 rounded-full"></span>}
             </Button>
@@ -185,7 +204,7 @@ export const CommunicationsList: React.FC = () => {
                 <select
                   value={filterMatter || ''}
                   onChange={(e) => setFilterMatter(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">All Matters</option>
                   {matters.map((matter) => (
@@ -200,7 +219,7 @@ export const CommunicationsList: React.FC = () => {
                 <select
                   value={filterContact || ''}
                   onChange={(e) => setFilterContact(e.target.value ? parseInt(e.target.value) : null)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">All Contacts</option>
                   {contacts.map((contact) => (
@@ -216,16 +235,12 @@ export const CommunicationsList: React.FC = () => {
       </Card>
 
       {/* Threads List */}
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <LoadingSpinner />
-        </div>
-      ) : filteredThreads.length === 0 ? (
+      {filteredThreads.length === 0 ? (
         <EmptyState
           title="No conversations"
-          description="Start a new conversation or connect your email to sync messages"
-          buttonText="Compose Message"
-          onButtonClick={() => setShowComposeModal(true)}
+          description={emailStatus?.isConnected ? "No emails found. Try syncing or wait for new emails." : "Connect your email to start receiving messages"}
+          buttonText={emailStatus?.isConnected ? "Sync Now" : "Connect Email"}
+          onButtonClick={emailStatus?.isConnected ? handleSync : () => setShowConnectModal(true)}
           icon={<EnvelopeIcon className="w-12 h-12 text-gray-400" />}
         />
       ) : (
@@ -233,11 +248,14 @@ export const CommunicationsList: React.FC = () => {
           {filteredThreads.map((thread) => (
             <div
               key={thread.id}
-              className="p-4 cursor-pointer hover:shadow-md transition-all hover:border-primary-200 group border border-gray-200 rounded-lg bg-white"
+              className="cursor-pointer"
               onClick={() => navigate(`/communications/threads/${thread.id}`)}
             >
+              <Card
+                className="p-4 hover:shadow-md transition-all hover:border-primary-200 group"
+              >
               <div className="flex items-start gap-4">
-                {/* Avatar/Icon */}
+                {/* Avatar */}
                 <div className="flex-shrink-0">
                   <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
                     {thread.contactName ? (
@@ -294,45 +312,30 @@ export const CommunicationsList: React.FC = () => {
                       </span>
                     )}
                   </div>
-
-                  {thread.lastMessageAt && (
-                    <p className="text-sm text-gray-500 mt-2 line-clamp-1">
-                      Last message: {formatDistanceToNow(new Date(thread.lastMessageAt), { addSuffix: true })}
-                    </p>
-                  )}
                 </div>
 
                 {/* Thread Type Icon */}
                 <div className="flex-shrink-0">
-                  {thread.threadType === 'EMAIL' ? (
-                    <EnvelopeIcon className="w-5 h-5 text-gray-300" />
-                  ) : (
-                    <PaperAirplaneIcon className="w-5 h-5 text-gray-300" />
-                  )}
+                  <EnvelopeIcon className="w-5 h-5 text-gray-300" />
                 </div>
               </div>
+            </Card>
             </div>
           ))}
         </div>
       )}
 
-      {/* Compose Modal */}
+      {/* Modals */}
       <ComposeMessageModal
         isOpen={showComposeModal}
         onClose={() => setShowComposeModal(false)}
-        onSuccess={() => {
-          fetchThreads({ matterId: filterMatter || undefined, contactId: filterContact || undefined });
-        }}
+        onSuccess={loadData}
       />
 
-      {/* Connect Email Modal */}
       <ConnectEmailModal
         isOpen={showConnectModal}
         onClose={() => setShowConnectModal(false)}
-        onSuccess={() => {
-          fetchEmailStatus();
-          fetchThreads();
-        }}
+        onSuccess={loadData}
       />
     </div>
   );
