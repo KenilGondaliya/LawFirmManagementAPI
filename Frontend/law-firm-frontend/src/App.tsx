@@ -13,7 +13,6 @@ import { CreateFirm } from "./pages/Auth/CreateFirm";
 import ResetPassword from "./pages/Auth/ResetPassword";
 import { SelectFirm } from "./pages/Auth/SelectFirm";
 import { Dashboard } from "./pages/Dashboard/Dashboard";
-import DocumentsList from "./pages/Documents/DocumentsList";
 import BillsList from "./pages/Billing/BillsList";
 import Profile from "./pages/Settings/Profile";
 import Team from "./pages/Settings/Team";
@@ -38,6 +37,8 @@ import { CommunicationsList } from "./pages/Communications/CommunicationsList";
 import { ThreadDetail } from "./pages/Communications/ThreadDetail";
 import { EmailTemplates } from "./pages/Communications/EmailTemplates";
 import { AuthGuard } from "./pages/Auth/AuthGuard";
+import { DocumentDetail } from "./pages/Documents/DocumentDetail";
+import { DocumentsList } from "./pages/Documents/DocumentsList";
 
 function App() {
   const { initializeAuth, isAuthenticated, isLoading } = useAuthStore();
@@ -114,6 +115,7 @@ function App() {
             <Route path="/tasks/create" element={<CreateTask />} />
             <Route path="/tasks/:id/edit" element={<EditTask />} />
             <Route path="/documents" element={<DocumentsList />} />
+            <Route path="/documents/:id" element={<DocumentDetail />} />
             <Route path="/communications" element={<CommunicationsList />} />
             <Route path="/communications/threads/:id" element={<ThreadDetail />} />
             <Route path="/communications/templates" element={<EmailTemplates />} />
