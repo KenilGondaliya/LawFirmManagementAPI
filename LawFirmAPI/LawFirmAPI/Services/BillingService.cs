@@ -92,13 +92,41 @@ namespace LawFirmAPI.Services
             var count = await _context.Bills.CountAsync(b => b.FirmId == firmId) + 1;
             var billNumber = $"{prefix}-{DateTime.Now:yyyyMMdd}-{count:D4}";
 
+            // ✅ Get or create default status
+            long statusId;
+            if (createDto.StatusId.HasValue)
+            {
+                statusId = createDto.StatusId.Value;
+            }
+            else
+            {
+                var defaultStatus = await _context.BillStatuses
+                    .FirstOrDefaultAsync(bs => bs.FirmId == firmId && bs.IsDefault);
+
+                if (defaultStatus == null)
+                {
+                    // Create default status if doesn't exist
+                    defaultStatus = new BillStatus
+                    {
+                        FirmId = firmId,
+                        Name = "Draft",
+                        Color = "#6c757d",
+                        IsDefault = true,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.BillStatuses.Add(defaultStatus);
+                    await _context.SaveChangesAsync();
+                }
+                statusId = defaultStatus.Id;
+            }
+
             var bill = new Bill
             {
                 FirmId = firmId,
                 BillNumber = billNumber,
                 MatterId = createDto.MatterId,
                 ContactId = createDto.ContactId,
-                StatusId = createDto.StatusId ?? 1, // Draft status
+                StatusId = statusId,
                 BillDate = createDto.BillDate,
                 DueDate = createDto.DueDate,
                 TaxAmount = createDto.TaxAmount ?? 0,

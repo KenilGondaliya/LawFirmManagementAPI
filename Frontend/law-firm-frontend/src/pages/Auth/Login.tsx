@@ -1,5 +1,5 @@
 // src/pages/Auth/Login.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
@@ -18,17 +18,23 @@ export const Login: React.FC = () => {
   const { login, firms, requiresFirmSelection } = useAuthStore();
   const [selectedFirm, setSelectedFirm] = useState<number | undefined>();
   const [isLoading, setIsLoading] = useState(false);
+  const isSubmittingRef = useRef(false);
   
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
   
   const onSubmit = async (data: LoginForm) => {
+    // Prevent double submission
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setIsLoading(true);
+    
     try {
       await login(data.emailOrUsername, data.password, selectedFirm);
       toast.success('Login successful!');
       navigate('/dashboard');
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Login failed');
+      isSubmittingRef.current = false;
     } finally {
       setIsLoading(false);
     }

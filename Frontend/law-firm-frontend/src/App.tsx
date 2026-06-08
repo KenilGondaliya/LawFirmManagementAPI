@@ -1,18 +1,19 @@
 // src/App.tsx
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "./stores/authStore";
 import { MainLayout } from "./components/Layout/MainLayout";
+import { LoadingSpinner } from "./components/Common/LoadingSpinner";
 
 // Auth Pages
 import { Login } from "./pages/Auth/Login";
 import { Register } from "./pages/Auth/Register";
 import { CreateFirm } from "./pages/Auth/CreateFirm";
 import ResetPassword from "./pages/Auth/ResetPassword";
+import { SelectFirm } from "./pages/Auth/SelectFirm";
 import { Dashboard } from "./pages/Dashboard/Dashboard";
 import DocumentsList from "./pages/Documents/DocumentsList";
-import CommunicationsList from "./pages/Communications/CommunicationsList";
 import BillsList from "./pages/Billing/BillsList";
 import Profile from "./pages/Settings/Profile";
 import Team from "./pages/Settings/Team";
@@ -33,81 +34,99 @@ import { TaskDetail } from "./pages/Tasks/TaskDetail";
 import { CreateTask } from "./pages/Tasks/CreateTask";
 import { EditTask } from "./pages/Tasks/EditTask";
 import { TasksList } from "./pages/Tasks/TasksList";
-
-// Main Pages
-
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const { isAuthenticated, requiresFirmCreation, requiresFirmSelection } =
-    useAuthStore();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (requiresFirmCreation) {
-    return <Navigate to="/create-firm" replace />;
-  }
-
-  if (requiresFirmSelection) {
-    return <Navigate to="/select-firm" replace />;
-  }
-
-  return <>{children}</>;
-};
+import { CommunicationsList } from "./pages/Communications/CommunicationsList";
+import { ThreadDetail } from "./pages/Communications/ThreadDetail";
+import { EmailTemplates } from "./pages/Communications/EmailTemplates";
+import { AuthGuard } from "./pages/Auth/AuthGuard";
 
 function App() {
+  const { initializeAuth, isAuthenticated, isLoading } = useAuthStore();
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    const init = async () => {
+      await initializeAuth();
+      setIsInitialized(true);
+    };
+    init();
+  }, []);
+
+  // Show loading spinner while initializing
+  if (!isInitialized || isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   return (
     <BrowserRouter>
-      <Toaster position="top-right" />
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
       <Routes>
-        {/* Auth Routes */}
+        {/* Public Routes - No auth required */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/create-firm" element={<CreateFirm />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/create-firm" element={<CreateFirm />} />
+        <Route path="/select-firm" element={<SelectFirm />} />
 
-        {/* Protected Routes */}
-        <Route
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/matters" element={<MattersList />} />
-          <Route path="/matters/:id" element={<MatterDetail />} />
-          <Route path="/matters/create" element={<CreateMatter />} />
-          <Route path="/matters/:id/edit" element={<EditMatter />} />
-
-          <Route path="/matters/create" element={<CreateMatter />} />
-          <Route path="/contacts" element={<ContactsList />} />
-          <Route path="/contacts/:id" element={<ContactDetail />} />
-          <Route path="/contacts/create" element={<CreateContact />} />
-          <Route path="/contacts/:id/edit" element={<CreateContact />} />
-          <Route path="/calendar" element={<CalendarView />} />
-          <Route path="/calendar/events/create" element={<EventCreate />} />
-          <Route path="/calendar/events/:id" element={<EventView />} />
-          <Route path="/calendar/events/:id/edit" element={<EventEdit />} />
-
-          <Route path="/tasks" element={<TasksList />} />
-          <Route path="/tasks/:id" element={<TaskDetail />} />
-          <Route path="/tasks/create" element={<CreateTask />} />
-          <Route path="/tasks/:id/edit" element={<EditTask />} />
-
-          <Route path="/documents" element={<DocumentsList />} />
-          <Route path="/communications" element={<CommunicationsList />} />
-          <Route path="/billing" element={<BillsList />} />
-          <Route path="/settings/profile" element={<Profile />} />
-          <Route path="/settings/team" element={<Team />} />
-          <Route path="/settings/firm" element={<FirmSettings />} />
-          <Route path="/settings/billing" element={<BillingSettings />} />
-
-          {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Protected Routes with AuthGuard */}
+        <Route element={<AuthGuard><MainLayout /></AuthGuard>}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/matters" element={<MattersList />} />
+            <Route path="/matters/:id" element={<MatterDetail />} />
+            <Route path="/matters/create" element={<CreateMatter />} />
+            <Route path="/matters/:id/edit" element={<EditMatter />} />
+            <Route path="/contacts" element={<ContactsList />} />
+            <Route path="/contacts/:id" element={<ContactDetail />} />
+            <Route path="/contacts/create" element={<CreateContact />} />
+            <Route path="/contacts/:id/edit" element={<CreateContact />} />
+            <Route path="/calendar" element={<CalendarView />} />
+            <Route path="/calendar/events/create" element={<EventCreate />} />
+            <Route path="/calendar/events/:id" element={<EventView />} />
+            <Route path="/calendar/events/:id/edit" element={<EventEdit />} />
+            <Route path="/tasks" element={<TasksList />} />
+            <Route path="/tasks/:id" element={<TaskDetail />} />
+            <Route path="/tasks/create" element={<CreateTask />} />
+            <Route path="/tasks/:id/edit" element={<EditTask />} />
+            <Route path="/documents" element={<DocumentsList />} />
+            <Route path="/communications" element={<CommunicationsList />} />
+            <Route path="/communications/threads/:id" element={<ThreadDetail />} />
+            <Route path="/communications/templates" element={<EmailTemplates />} />
+            <Route path="/billing" element={<BillsList />} />
+            <Route path="/settings/profile" element={<Profile />} />
+            <Route path="/settings/team" element={<Team />} />
+            <Route path="/settings/firm" element={<FirmSettings />} />
+            <Route path="/settings/billing" element={<BillingSettings />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
+        
+        {/* Catch all - redirect to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );

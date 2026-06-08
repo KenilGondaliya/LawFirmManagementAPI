@@ -1,4 +1,4 @@
-// src/services/auth.service.ts
+// src/services/auth.service.ts - Add refreshToken method if not exists
 import api from './api';
 import { AuthResponse, LoginDto, RegisterDto, CreateFirmDto, UpdateProfileDto, User, ChangePasswordDto, InviteUserDto, InviteResponse } from '../types';
 

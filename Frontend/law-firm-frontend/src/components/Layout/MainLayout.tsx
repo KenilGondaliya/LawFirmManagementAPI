@@ -3,6 +3,7 @@ import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { useAuthStore } from '../../stores/authStore';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -13,7 +14,10 @@ const pageTitles: Record<string, string> = {
   '/communications': 'Communications',
   '/documents': 'Documents',
   '/billing': 'Billing',
-  '/settings': 'Settings',
+  '/settings/profile': 'Profile Settings',
+  '/settings/team': 'Team Management',
+  '/settings/firm': 'Firm Settings',
+  '/settings/billing': 'Billing & Plan',
 };
 
 export const MainLayout: React.FC = () => {
