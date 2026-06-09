@@ -45,6 +45,7 @@ namespace LawFirmAPI.Models.DTOs
 
     public class SwitchFirmDto
     {
+        public long UserId { get; set; }
         public long FirmId { get; set; }
     }
 

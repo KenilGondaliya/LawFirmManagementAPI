@@ -1,17 +1,24 @@
-// src/App.tsx
+// src/App.tsx - Add ForgotPassword import and route
+
 import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useAuthStore } from "./stores/authStore";
 import { MainLayout } from "./components/Layout/MainLayout";
 import { LoadingSpinner } from "./components/Common/LoadingSpinner";
+import { AuthGuard } from "./pages/Auth/AuthGuard";
 
-// Auth Pages
+// Auth Pages 
 import { Login } from "./pages/Auth/Login";
 import { Register } from "./pages/Auth/Register";
 import { CreateFirm } from "./pages/Auth/CreateFirm";
 import ResetPassword from "./pages/Auth/ResetPassword";
+import { ForgotPassword } from "./pages/Auth/ForgotPassword";
 import { SelectFirm } from "./pages/Auth/SelectFirm";
+import { VerifyEmail } from "./pages/Auth/VerifyEmail";
+import { ResendVerification } from "./pages/Auth/ResendVerification";
+
+// Other imports remain the same...
 import { Dashboard } from "./pages/Dashboard/Dashboard";
 import Profile from "./pages/Settings/Profile";
 import Team from "./pages/Settings/Team";
@@ -35,7 +42,6 @@ import { TasksList } from "./pages/Tasks/TasksList";
 import { CommunicationsList } from "./pages/Communications/CommunicationsList";
 import { ThreadDetail } from "./pages/Communications/ThreadDetail";
 import { EmailTemplates } from "./pages/Communications/EmailTemplates";
-import { AuthGuard } from "./pages/Auth/AuthGuard";
 import { DocumentDetail } from "./pages/Documents/DocumentDetail";
 import { DocumentsList } from "./pages/Documents/DocumentsList";
 import { BillDetail } from "./pages/Billing/BillDetail";
@@ -43,7 +49,7 @@ import { CreateBill } from "./pages/Billing/CreateBill";
 import { BillsList } from "./pages/Billing/BillsList";
 
 function App() {
-  const { initializeAuth, isAuthenticated, isLoading } = useAuthStore();
+  const { initializeAuth, isLoading } = useAuthStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -52,7 +58,7 @@ function App() {
       setIsInitialized(true);
     };
     init();
-  }, []);
+  }, [initializeAuth]);
 
   // Show loading spinner while initializing
   if (!isInitialized || isLoading) {
@@ -93,18 +99,15 @@ function App() {
         {/* Public Routes - No auth required */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/create-firm" element={<CreateFirm />} />
         <Route path="/select-firm" element={<SelectFirm />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/resend-verification" element={<ResendVerification />} />
 
-        {/* Protected Routes with AuthGuard */}
-        <Route
-          element={
-            <AuthGuard>
-              <MainLayout />
-            </AuthGuard>
-          }
-        >
+        {/* Protected Routes */}
+        <Route element={<AuthGuard><MainLayout /></AuthGuard>}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/matters" element={<MattersList />} />
           <Route path="/matters/:id" element={<MatterDetail />} />
@@ -125,14 +128,8 @@ function App() {
           <Route path="/documents" element={<DocumentsList />} />
           <Route path="/documents/:id" element={<DocumentDetail />} />
           <Route path="/communications" element={<CommunicationsList />} />
-          <Route
-            path="/communications/threads/:id"
-            element={<ThreadDetail />}
-          />
-          <Route
-            path="/communications/templates"
-            element={<EmailTemplates />}
-          />
+          <Route path="/communications/threads/:id" element={<ThreadDetail />} />
+          <Route path="/communications/templates" element={<EmailTemplates />} />
           <Route path="/billing" element={<BillsList />} />
           <Route path="/billing/bills/:id" element={<BillDetail />} />
           <Route path="/billing/create" element={<CreateBill />} />

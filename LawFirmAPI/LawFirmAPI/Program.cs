@@ -12,7 +12,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
-
 // Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -39,7 +38,6 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-
 // Database - PostgreSQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -51,8 +49,6 @@ if (string.IsNullOrEmpty(connectionString))
 
 Console.WriteLine($"Using connection string: {connectionString}");
 
-
-
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
@@ -60,39 +56,34 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "your-super-secret-key-with-minimum-32-characters-long";
 var key = Encoding.ASCII.GetBytes(jwtSecret);
 
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidateAudience = true,
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
-    };
-});
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowReactApp", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173") // Your React dev server ports
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"] ?? "your-super-secret-key-with-minimum-32-characters-long"))
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                // Allow token from query string for SignalR or special cases
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
-});
-
 
 // Services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -116,17 +107,17 @@ builder.Services.AddScoped<ICommunicationsService, CommunicationsService>();
 builder.Services.AddScoped<IBillingService, BillingService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 
-
 builder.Services.AddHttpContextAccessor();
 
 // CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
+              .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowCredentials();
     });
 });
 
@@ -140,10 +131,83 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
+
+// ✅ CORS - Must be before authentication
+app.UseCors("AllowReactApp");
+
+// ✅ Authentication
 app.UseAuthentication();
-app.UseMiddleware<TenantMiddleware>();
+
+// ✅ Custom Tenant/Firm Context Middleware - WITH PUBLIC PATH HANDLING
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.ToString().ToLower();
+    var method = context.Request.Method;
+    
+    // ✅ Define ALL public endpoints that should NEVER require authentication or firm context
+    var publicPaths = new[]
+    {
+        "/api/v1/auth/register",
+        "/api/v1/auth/login",
+        "/api/v1/auth/refresh-token",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+        "/api/v1/auth/verify-email",
+        "/api/v1/auth/resend-verification",
+        "/api/v1/auth/accept-invite",
+        "/swagger",
+        "/swagger/index.html"
+    };
+    
+    // Check if current path is public
+    var isPublicPath = publicPaths.Any(p => path.StartsWith(p));
+    
+    if (isPublicPath)
+    {
+        // ✅ Skip tenant/firm context check entirely for public endpoints
+        await next();
+        return;
+    }
+    
+    // ✅ For protected endpoints, check if user is authenticated
+    if (!context.User.Identity?.IsAuthenticated ?? true)
+    {
+        context.Response.StatusCode = 401;
+        await context.Response.WriteAsJsonAsync(new { message = "Unauthorized: Please login first" });
+        return;
+    }
+    
+    // ✅ User is authenticated, now apply tenant middleware logic
+    // Get firm ID from JWT claim
+    var firmId = context.User.FindFirst("firmId")?.Value;
+    
+    // Endpoints that might not need firm context (like logout)
+    var endpointsWithoutFirm = new[] { "/api/v1/auth/logout" };
+    var isEndpointWithoutFirm = endpointsWithoutFirm.Any(p => path.Contains(p));
+    
+    if (!isEndpointWithoutFirm && string.IsNullOrEmpty(firmId))
+    {
+        context.Response.StatusCode = 401;
+        await context.Response.WriteAsJsonAsync(new { 
+            message = "Unauthorized: No firm context. Please create or select a firm first.",
+            requiresFirmCreation = true 
+        });
+        return;
+    }
+    
+    // Store firm context for downstream services
+    if (!string.IsNullOrEmpty(firmId))
+    {
+        context.Items["FirmId"] = long.Parse(firmId);
+    }
+    
+    await next();
+});
+
+// ✅ Authorization - Must come after Authentication
 app.UseAuthorization();
+
+// ✅ Map controllers
 app.MapControllers();
 
 // Ensure database is created with error handling
@@ -162,8 +226,6 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine($"Error creating database: {ex.Message}");
         Console.WriteLine($"Inner exception: {ex.InnerException?.Message}");
         Console.WriteLine("Make sure PostgreSQL is running and connection string is correct.");
-        
-        // Don't throw - allow the app to start but log the error
         Console.WriteLine("Continuing without database...");
     }
 }

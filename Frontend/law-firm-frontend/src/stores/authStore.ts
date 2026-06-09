@@ -1,7 +1,8 @@
-// src/stores/authStore.ts
+// src/stores/authStore.ts - Add missing methods
+
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
-import { User, Firm, AuthResponse, RegisterDto, CreateFirmDto, UpdateProfileDto } from '../types';
+import { User, Firm, AuthResponse, RegisterDto, CreateFirmDto, UpdateProfileDto, ChangePasswordDto, InviteUserDto, InviteResponse } from '../types';
 import { authService } from '../services/auth.service';
 import api from '../services/api';
 
@@ -15,15 +16,32 @@ interface AuthState {
   requiresFirmSelection: boolean;
   authError: string | null;
   
+  // Auth actions
   login: (emailOrUsername: string, password: string, firmId?: number) => Promise<void>;
   register: (data: RegisterDto) => Promise<void>;
-  createFirm: (data: CreateFirmDto) => Promise<void>;
   logout: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
+  
+  // Firm actions
+  createFirm: (data: CreateFirmDto) => Promise<void>;
+  switchFirm: (firmId: number) => Promise<void>;
   setCurrentFirm: (firm: Firm) => void;
+  
+  // Profile actions
   updateProfile: (data: UpdateProfileDto) => Promise<void>;
+  changePassword: (data: ChangePasswordDto) => Promise<void>;
+  
+  // Email verification
+  resendVerification: (email: string) => Promise<void>;
+  verifyEmail: (token: string) => Promise<void>;
+  
+  // Team actions
+  inviteUser: (data: InviteUserDto) => Promise<InviteResponse>;
+  acceptInvite: (email: string, firstName?: string, lastName?: string) => Promise<void>;
+  
+  // Utility
   clearAuth: () => void;
   initializeAuth: () => Promise<void>;
-  refreshToken: () => Promise<boolean>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -126,6 +144,35 @@ export const useAuthStore = create<AuthState>()(
           }
         },
         
+        switchFirm: async (firmId) => {
+          set({ isLoading: true, authError: null });
+          try {
+            const response = await authService.switchFirm(firmId);
+            
+            // Update tokens
+            localStorage.setItem('accessToken', response.accessToken);
+            localStorage.setItem('refreshToken', response.refreshToken);
+            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
+            
+            set({
+              user: response.user,
+              firms: response.firms,
+              currentFirm: response.currentFirm,
+              isAuthenticated: true,
+              requiresFirmCreation: false,
+              requiresFirmSelection: false,
+              isLoading: false,
+              authError: null,
+            });
+          } catch (error: any) {
+            set({ 
+              isLoading: false, 
+              authError: error.response?.data?.message || 'Failed to switch firm' 
+            });
+            throw error;
+          }
+        },
+        
         logout: async () => {
           const refreshToken = localStorage.getItem('refreshToken');
           if (refreshToken) {
@@ -137,23 +184,68 @@ export const useAuthStore = create<AuthState>()(
         
         setCurrentFirm: (firm) => {
           set({ currentFirm: firm });
-          // Update localStorage to persist current firm
-          const stored = localStorage.getItem('auth-storage');
-          if (stored) {
-            try {
-              const parsed = JSON.parse(stored);
-              parsed.state.currentFirm = firm;
-              localStorage.setItem('auth-storage', JSON.stringify(parsed));
-            } catch (e) {
-              console.error('Failed to update stored firm:', e);
-            }
-          }
         },
         
         updateProfile: async (data) => {
-          await authService.updateProfile(data);
+          set({ isLoading: true });
+          try {
+            await authService.updateProfile(data);
+            const profile = await authService.getProfile();
+            set({ user: profile, isLoading: false });
+          } catch (error) {
+            set({ isLoading: false });
+            throw error;
+          }
+        },
+        
+        changePassword: async (data) => {
+          set({ isLoading: true });
+          try {
+            await authService.changePassword(data);
+            set({ isLoading: false });
+          } catch (error) {
+            set({ isLoading: false });
+            throw error;
+          }
+        },
+        
+        resendVerification: async (email) => {
+          await authService.resendVerification(email);
+        },
+        
+        verifyEmail: async (token) => {
+          await authService.verifyEmail(token);
+          // Update user email verification status
           const profile = await authService.getProfile();
           set({ user: profile });
+        },
+        
+        inviteUser: async (data) => {
+          return await authService.inviteUser(data);
+        },
+        
+        acceptInvite: async (email, firstName, lastName) => {
+          set({ isLoading: true });
+          try {
+            const response = await authService.acceptInvite(email, firstName, lastName);
+            
+            localStorage.setItem('accessToken', response.accessToken);
+            localStorage.setItem('refreshToken', response.refreshToken);
+            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
+            
+            set({
+              user: response.user,
+              firms: response.firms,
+              currentFirm: response.currentFirm,
+              isAuthenticated: true,
+              requiresFirmCreation: false,
+              requiresFirmSelection: false,
+              isLoading: false,
+            });
+          } catch (error) {
+            set({ isLoading: false });
+            throw error;
+          }
         },
         
         clearAuth: () => {
@@ -183,25 +275,10 @@ export const useAuthStore = create<AuthState>()(
             localStorage.setItem('refreshToken', response.refreshToken);
             api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
             
-            // Get stored firms from persist
-            const storedState = localStorage.getItem('auth-storage');
-            let firms: Firm[] = [];
-            let currentFirm: Firm | null = null;
-            
-            if (storedState) {
-              try {
-                const parsed = JSON.parse(storedState);
-                firms = parsed.state?.firms || [];
-                currentFirm = parsed.state?.currentFirm || null;
-              } catch (e) {
-                console.error('Failed to parse stored state:', e);
-              }
-            }
-            
             set({
               user: response.user,
-              firms: firms.length > 0 ? firms : response.firms,
-              currentFirm: currentFirm || response.currentFirm,
+              firms: response.firms,
+              currentFirm: response.currentFirm,
               isAuthenticated: true,
               requiresFirmCreation: false,
               requiresFirmSelection: false,
@@ -217,7 +294,6 @@ export const useAuthStore = create<AuthState>()(
         },
         
         initializeAuth: async () => {
-          // Prevent multiple initializations
           if (get().isAuthenticated) {
             return;
           }
@@ -227,34 +303,27 @@ export const useAuthStore = create<AuthState>()(
           const accessToken = localStorage.getItem('accessToken');
           const refreshToken = localStorage.getItem('refreshToken');
           
-          // If no tokens, clear auth and return
           if (!accessToken || !refreshToken) {
             get().clearAuth();
             set({ isLoading: false });
             return;
           }
           
-          // Set token in axios headers
           api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
           
           try {
-            // Try to get user profile to validate token
             const profile = await authService.getProfile();
             
-            // Get stored state from localStorage (persist middleware)
+            // Try to restore stored firms from localStorage
             const storedState = localStorage.getItem('auth-storage');
             let firms: Firm[] = [];
             let currentFirm: Firm | null = null;
-            let requiresFirmCreation = false;
-            let requiresFirmSelection = false;
             
             if (storedState) {
               try {
                 const parsed = JSON.parse(storedState);
                 firms = parsed.state?.firms || [];
                 currentFirm = parsed.state?.currentFirm || null;
-                requiresFirmCreation = parsed.state?.requiresFirmCreation || false;
-                requiresFirmSelection = parsed.state?.requiresFirmSelection || false;
               } catch (e) {
                 console.error('Failed to parse stored state:', e);
               }
@@ -265,15 +334,11 @@ export const useAuthStore = create<AuthState>()(
               firms: firms,
               currentFirm: currentFirm,
               isAuthenticated: true,
-              requiresFirmCreation,
-              requiresFirmSelection,
+              requiresFirmCreation: false,
+              requiresFirmSelection: false,
               isLoading: false,
-              authError: null,
             });
           } catch (error: any) {
-            console.error('Auth initialization failed:', error);
-            
-            // If token is expired, try to refresh
             if (error.response?.status === 401) {
               const refreshed = await get().refreshToken();
               if (refreshed) {
@@ -282,7 +347,6 @@ export const useAuthStore = create<AuthState>()(
               }
             }
             
-            // If all fails, clear auth
             get().clearAuth();
             set({ isLoading: false, authError: 'Session expired. Please login again.' });
           }
@@ -294,8 +358,6 @@ export const useAuthStore = create<AuthState>()(
           user: state.user,
           firms: state.firms,
           currentFirm: state.currentFirm,
-          requiresFirmCreation: state.requiresFirmCreation,
-          requiresFirmSelection: state.requiresFirmSelection,
         }),
       }
     )

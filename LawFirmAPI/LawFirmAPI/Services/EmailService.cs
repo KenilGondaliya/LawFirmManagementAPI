@@ -1,4 +1,4 @@
-// Services/EmailService.cs - Complete Working Version
+// Services/EmailService.cs - Fixed to use Frontend URL
 
 using MailKit.Net.Smtp;
 using MailKit.Security;
@@ -12,10 +12,13 @@ namespace LawFirmAPI.Services
     public class EmailService : IEmailService
     {
         private readonly IConfiguration _configuration;
+        private readonly string _frontendUrl;
 
         public EmailService(IConfiguration configuration)
         {
             _configuration = configuration;
+            // Get frontend URL from configuration (React app URL)
+            _frontendUrl = _configuration["Frontend:Url"] ?? "http://localhost:3000";
         }
 
         private async Task SendEmail(string toEmail, string subject, string htmlBody, byte[]? attachment = null, string? attachmentName = null)
@@ -61,35 +64,34 @@ namespace LawFirmAPI.Services
         public async Task SendEmailMessage(string toEmail, string subject, string body, string fromName, string fromEmail)
         {
             var htmlBody = $@"
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background-color: #1a56db; color: white; padding: 20px; text-align: center; }}
-                .content {{ padding: 20px; }}
-                .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
-                    <h2>Law Firm Management System</h2>
-                </div>
-                <div class='content'>
-                    <p><strong>From:</strong> {fromName} ({fromEmail})</p>
-                    <p><strong>Subject:</strong> {subject}</p>
-                    <hr/>
-                    <div style='white-space: pre-wrap;'>{body}</div>
-                </div>
-                <div class='footer'>
-                    <p>This message was sent from Law Firm Management System</p>
-                </div>
-            </div>
-        </body>
-        </html>
-    ";
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #1a56db; color: white; padding: 20px; text-align: center; }}
+                        .content {{ padding: 20px; }}
+                        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <div class='header'>
+                            <h2>Law Firm Management System</h2>
+                        </div>
+                        <div class='content'>
+                            <p><strong>From:</strong> {fromName} ({fromEmail})</p>
+                            <p><strong>Subject:</strong> {subject}</p>
+                            <hr/>
+                            <div style='white-space: pre-wrap;'>{body}</div>
+                        </div>
+                        <div class='footer'>
+                            <p>This message was sent from Law Firm Management System</p>
+                        </div>
+                    </div>
+                </body>
+                </html>";
 
             await SendEmail(toEmail, subject, htmlBody);
         }
@@ -97,43 +99,42 @@ namespace LawFirmAPI.Services
         public async Task SendRawEmail(string toEmail, string subject, string body, string fromName, string fromEmail)
         {
             var htmlBody = $@"
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset='UTF-8'>
-            <style>
-                body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
-                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background-color: #1a56db; color: white; padding: 20px; text-align: center; }}
-                .content {{ padding: 20px; }}
-                .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
-            </style>
-        </head>
-        <body>
-            <div class='container'>
-                <div class='header'>
-                    <h2>Law Firm Management System</h2>
-                </div>
-                <div class='content'>
-                    {body}
-                </div>
-                <div class='footer'>
-                    <p>© 2024 Law Firm Management System. All rights reserved.</p>
-                </div>
-            </div>
-        </body>
-        </html>
-    ";
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset='UTF-8'>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
+                        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                        .header {{ background-color: #1a56db; color: white; padding: 20px; text-align: center; }}
+                        .content {{ padding: 20px; }}
+                        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <div class='header'>
+                            <h2>Law Firm Management System</h2>
+                        </div>
+                        <div class='content'>
+                            {body}
+                        </div>
+                        <div class='footer'>
+                            <p>© 2024 Law Firm Management System. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>";
 
             await SendEmail(toEmail, subject, htmlBody);
         }
 
-
-
         public async Task SendVerificationEmail(string toEmail, string verificationToken)
         {
-            var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
-            var verificationLink = $"{appUrl}/verify-email?token={verificationToken}";
+            // URL encode the token
+            var encodedToken = Uri.EscapeDataString(verificationToken);
+            // Link to FRONTEND, not backend
+            var verificationLink = $"{_frontendUrl}/verify-email?token={encodedToken}";
 
             var htmlBody = $@"
                 <!DOCTYPE html>
@@ -167,16 +168,18 @@ namespace LawFirmAPI.Services
                         </div>
                     </div>
                 </body>
-                </html>
-            ";
+                </html>";
 
             await SendEmail(toEmail, "Verify Your Email - Law Firm Management System", htmlBody);
         }
 
         public async Task SendPasswordResetEmail(string toEmail, string resetToken)
         {
-            var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
-            var resetLink = $"{appUrl}/reset-password?token={resetToken}";
+            // URL encode the token and email
+            var encodedToken = Uri.EscapeDataString(resetToken);
+            var encodedEmail = Uri.EscapeDataString(toEmail);
+            // Link to FRONTEND reset password page
+            var resetLink = $"{_frontendUrl}/reset-password?token={encodedToken}&email={encodedEmail}";
 
             var htmlBody = $@"
                 <!DOCTYPE html>
@@ -189,6 +192,7 @@ namespace LawFirmAPI.Services
                         .content {{ padding: 20px; }}
                         .button {{ background-color: #1a56db; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; }}
                         .warning {{ background-color: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }}
+                        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
                     </style>
                 </head>
                 <body>
@@ -197,7 +201,7 @@ namespace LawFirmAPI.Services
                             <h2>Password Reset Request</h2>
                         </div>
                         <div class='content'>
-                            <p>We received a request to reset your password.</p>
+                            <p>We received a request to reset your password for <strong>{toEmail}</strong>.</p>
                             <p>Click the button below to create a new password:</p>
                             <p style='text-align: center;'>
                                 <a href='{resetLink}' class='button'>Reset Password</a>
@@ -205,23 +209,24 @@ namespace LawFirmAPI.Services
                             <div class='warning'>
                                 <strong>⚠️ Security Note:</strong>
                                 <p>If you didn't request this, please ignore this email. Your password will remain unchanged.</p>
-                                <p>This link will expire in 24 hours.</p>
+                                <p>This link will expire in <strong>24 hours</strong> for security reasons.</p>
                             </div>
+                            <p>Or copy and paste this link into your browser:</p>
+                            <p style='word-break: break-all;'>{resetLink}</p>
                         </div>
                         <div class='footer'>
                             <p>© 2024 Law Firm Management System. All rights reserved.</p>
                         </div>
                     </div>
                 </body>
-                </html>
-            ";
+                </html>";
 
             await SendEmail(toEmail, "Reset Your Password - Law Firm Management System", htmlBody);
         }
 
         public async Task SendWelcomeEmail(string toEmail, string tempPassword, string firstName)
         {
-            var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
+            var loginLink = $"{_frontendUrl}/login";
 
             var htmlBody = $@"
                 <!DOCTYPE html>
@@ -253,7 +258,7 @@ namespace LawFirmAPI.Services
                                 <strong>Important:</strong> Please change your password after first login for security.
                             </p>
                             <p style='text-align: center;'>
-                                <a href='{appUrl}/login' class='button'>Login to Your Account</a>
+                                <a href='{loginLink}' class='button'>Login to Your Account</a>
                             </p>
                         </div>
                         <div class='footer'>
@@ -261,16 +266,15 @@ namespace LawFirmAPI.Services
                         </div>
                     </div>
                 </body>
-                </html>
-            ";
+                </html>";
 
             await SendEmail(toEmail, "Welcome to Law Firm Management System", htmlBody);
         }
 
         public async Task SendInvitationEmail(string toEmail, string firstName, long firmId)
         {
-            var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
-            var acceptInviteLink = $"{appUrl}/accept-invite?email={toEmail}&firmId={firmId}";
+            var encodedEmail = Uri.EscapeDataString(toEmail);
+            var acceptInviteLink = $"{_frontendUrl}/accept-invite?email={encodedEmail}&firmId={firmId}";
 
             var htmlBody = $@"
                 <!DOCTYPE html>
@@ -299,21 +303,21 @@ namespace LawFirmAPI.Services
                             </p>
                             <p>If you don't have an account yet, you'll be guided to create one.</p>
                             <p>This invitation link will expire in 7 days.</p>
+                            <p>Or copy and paste this link: <br/>{acceptInviteLink}</p>
                         </div>
                         <div class='footer'>
                             <p>© 2024 Law Firm Management System. All rights reserved.</p>
                         </div>
                     </div>
                 </body>
-                </html>
-            ";
+                </html>";
 
             await SendEmail(toEmail, "You've Been Invited to Join a Law Firm", htmlBody);
         }
 
         public async Task SendBillEmail(string toEmail, string billNumber, byte[] pdfBytes)
         {
-            var appUrl = _configuration["AppUrl"] ?? "http://localhost:5165";
+            var billingLink = $"{_frontendUrl}/billing";
 
             var htmlBody = $@"
                 <!DOCTYPE html>
@@ -338,7 +342,7 @@ namespace LawFirmAPI.Services
                             <p>Please find attached your invoice for your review.</p>
                             <p>You can view and pay your invoice through your dashboard.</p>
                             <p style='text-align: center;'>
-                                <a href='{appUrl}/billing' class='button'>View Dashboard</a>
+                                <a href='{billingLink}' class='button'>View Dashboard</a>
                             </p>
                             <p>If you have any questions, please don't hesitate to contact us.</p>
                         </div>
@@ -347,8 +351,7 @@ namespace LawFirmAPI.Services
                         </div>
                     </div>
                 </body>
-                </html>
-            ";
+                </html>";
 
             await SendEmail(toEmail, $"Invoice #{billNumber} - Law Firm Management System", htmlBody, pdfBytes, $"Invoice_{billNumber}.pdf");
         }

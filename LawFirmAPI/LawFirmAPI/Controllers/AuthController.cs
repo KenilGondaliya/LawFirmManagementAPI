@@ -1,4 +1,5 @@
-// Controllers/AuthController.cs
+// Controllers/AuthController.cs - Fixed version
+
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,16 +14,13 @@ namespace LawFirmAPI.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-        private readonly IFirmContextService _firmContextService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
         public AuthController(
             IAuthService authService,
-            IFirmContextService firmContextService,
             IHttpContextAccessor httpContextAccessor)
         {
             _authService = authService;
-            _firmContextService = firmContextService;
             _httpContextAccessor = httpContextAccessor;
         }
 
@@ -34,6 +32,8 @@ namespace LawFirmAPI.Controllers
             return ip;
         }
 
+        // ==================== PUBLIC ENDPOINTS (No Authentication Required) ====================
+        
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
@@ -44,19 +44,6 @@ namespace LawFirmAPI.Controllers
 
             if (result == null)
                 return BadRequest(new { message = "User already exists" });
-
-            return Ok(result);
-        }
-
-        [HttpPost("create-firm")]
-        [Authorize]
-        public async Task<IActionResult> CreateFirm([FromBody] CreateFirmDto createFirmDto)
-        {
-            var userId = long.Parse(User.FindFirst("userId")?.Value ?? "0");
-            var result = await _authService.CreateFirmAndSubscribe(userId, createFirmDto, GetIpAddress());
-
-            if (result == null)
-                return BadRequest(new { message = "Failed to create firm" });
 
             return Ok(result);
         }
@@ -75,18 +62,6 @@ namespace LawFirmAPI.Controllers
             return Ok(result);
         }
 
-        [HttpPost("switch-firm")]
-        [Authorize]
-        public async Task<IActionResult> SwitchFirm([FromBody] SwitchFirmDto switchFirmDto)
-        {
-            var result = await _authService.SwitchFirm(switchFirmDto, GetIpAddress());
-
-            if (result == null)
-                return Unauthorized(new { message = "Unable to switch firm" });
-
-            return Ok(result);
-        }
-
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto refreshTokenDto)
         {
@@ -94,6 +69,88 @@ namespace LawFirmAPI.Controllers
 
             if (result == null)
                 return Unauthorized(new { message = "Invalid refresh token" });
+
+            return Ok(result);
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto forgotPasswordDto)
+        {
+            await _authService.ForgotPassword(forgotPasswordDto.Email);
+            return Ok(new { message = "If your email is registered, you will receive a password reset link" });
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _authService.ResetPassword(resetPasswordDto);
+
+            if (!result)
+                return BadRequest(new { message = "Invalid or expired token" });
+
+            return Ok(new { message = "Password reset successfully" });
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto verifyEmailDto)
+        {
+            var result = await _authService.VerifyEmail(verifyEmailDto.Token);
+
+            if (!result)
+                return BadRequest(new { message = "Invalid or expired verification token" });
+
+            return Ok(new { message = "Email verified successfully" });
+        }
+
+        [HttpPost("resend-verification")]
+        public async Task<IActionResult> ResendVerification([FromBody] ForgotPasswordDto resendDto)
+        {
+            await _authService.ResendVerification(resendDto.Email);
+            return Ok(new { message = "Verification email sent" });
+        }
+
+        [HttpPost("accept-invite")]
+        public async Task<IActionResult> AcceptInvite([FromBody] AcceptInviteDto acceptInviteDto)
+        {
+            // REMOVED [Authorize] - This should be public since user might not be logged in yet
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _authService.AcceptInvite(acceptInviteDto, GetIpAddress());
+
+            if (result == null)
+                return BadRequest(new { message = "Invalid or expired invitation" });
+
+            return Ok(result);
+        }
+
+        // ==================== PROTECTED ENDPOINTS (Authentication Required) ====================
+
+        [HttpPost("create-firm")]
+        [Authorize]
+        public async Task<IActionResult> CreateFirm([FromBody] CreateFirmDto createFirmDto)
+        {
+            var userId = long.Parse(User.FindFirst("userId")?.Value ?? "0");
+            var result = await _authService.CreateFirmAndSubscribe(userId, createFirmDto, GetIpAddress());
+
+            if (result == null)
+                return BadRequest(new { message = "Failed to create firm" });
+
+            return Ok(result);
+        }
+
+        [HttpPost("switch-firm")]
+        [Authorize]
+        public async Task<IActionResult> SwitchFirm([FromBody] SwitchFirmDto switchFirmDto)
+        {
+            var userId = long.Parse(User.FindFirst("userId")?.Value ?? "0");
+            var result = await _authService.SwitchFirm(userId, switchFirmDto.FirmId, GetIpAddress());
+
+            if (result == null)
+                return Unauthorized(new { message = "Unable to switch firm" });
 
             return Ok(result);
         }
@@ -149,50 +206,10 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Password changed successfully" });
         }
 
-        [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto forgotPasswordDto)
-        {
-            await _authService.ForgotPassword(forgotPasswordDto.Email);
-            return Ok(new { message = "If your email is registered, you will receive a password reset link" });
-        }
-
-        [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto resetPasswordDto)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var result = await _authService.ResetPassword(resetPasswordDto);
-
-            if (!result)
-                return BadRequest(new { message = "Invalid or expired token" });
-
-            return Ok(new { message = "Password reset successfully" });
-        }
-
-        [HttpPost("verify-email")]
-        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailDto verifyEmailDto)
-        {
-            var result = await _authService.VerifyEmail(verifyEmailDto.Token);
-
-            if (!result)
-                return BadRequest(new { message = "Invalid or expired verification token" });
-
-            return Ok(new { message = "Email verified successfully" });
-        }
-
-        [HttpPost("resend-verification")]
-        public async Task<IActionResult> ResendVerification([FromBody] ForgotPasswordDto resendDto)
-        {
-            await _authService.ResendVerification(resendDto.Email);
-            return Ok(new { message = "Verification email sent" });
-        }
-
         [HttpPost("invite")]
         [Authorize]
         public async Task<IActionResult> InviteUser([FromBody] InviteUserDto inviteDto)
         {
-            // ✅ Get firmId from JWT claim
             var firmIdClaim = User.FindFirst("firmId")?.Value;
 
             if (string.IsNullOrEmpty(firmIdClaim))
@@ -218,21 +235,6 @@ namespace LawFirmAPI.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
-        }
-
-        [HttpPost("accept-invite")]
-        [Authorize]
-        public async Task<IActionResult> AcceptInvite([FromBody] AcceptInviteDto acceptInviteDto)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            var result = await _authService.AcceptInvite(acceptInviteDto, GetIpAddress());
-
-            if (result == null)
-                return BadRequest(new { message = "Invalid or expired invitation" });
-
-            return Ok(result);
         }
     }
 }

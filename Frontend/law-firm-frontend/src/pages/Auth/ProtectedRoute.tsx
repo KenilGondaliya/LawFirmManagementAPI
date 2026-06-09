@@ -1,4 +1,5 @@
 // src/components/Auth/ProtectedRoute.tsx
+
 import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -21,7 +22,7 @@ export const ProtectedRoute: React.FC = () => {
       setIsChecking(false);
     };
     checkAuth();
-  }, []);
+  }, [initializeAuth]);
 
   // Show loading while checking authentication
   if (isChecking || isLoading) {
@@ -42,7 +43,7 @@ export const ProtectedRoute: React.FC = () => {
     return <Navigate to="/create-firm" replace />;
   }
 
-  // Needs firm selection
+  // Needs firm selection (user has multiple firms)
   if (requiresFirmSelection) {
     return <Navigate to="/select-firm" replace />;
   }

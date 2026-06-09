@@ -34,6 +34,8 @@ namespace LawFirmAPI.Services
         Task<bool> ResendVerification(string email);
         Task<UserResponseDto> InviteUser(long firmId, long invitedBy, InviteUserDto inviteDto);
         Task<AuthResponseDto> AcceptInvite(AcceptInviteDto acceptInviteDto, string ipAddress);
+        Task<AuthResponseDto> SwitchFirm(long userId, long firmId, string ipAddress);
+
     }
 
     public class AuthService : IAuthService
@@ -487,10 +489,37 @@ namespace LawFirmAPI.Services
             return await GenerateAuthResponse(user, firm, ipAddress);
         }
 
+        // Services/AuthService.cs - Replace SwitchFirm method
+
+        // Services/AuthService.cs - Add SwitchFirm implementation
+
         public async Task<AuthResponseDto> SwitchFirm(SwitchFirmDto switchFirmDto, string ipAddress)
         {
-            // TODO: Implement switch firm logic
-            throw new NotImplementedException("SwitchFirm implementation needed");
+            if (switchFirmDto == null)
+                return null;
+
+            return await SwitchFirm(switchFirmDto.UserId, switchFirmDto.FirmId, ipAddress);
+        }
+
+        public async Task<AuthResponseDto> SwitchFirm(long userId, long firmId, string ipAddress)
+        {
+            // Verify user has access to this firm
+            var userFirm = await _context.UserFirms
+                .Include(uf => uf.Firm)
+                .FirstOrDefaultAsync(uf => uf.UserId == userId && uf.FirmId == firmId && uf.Status == UserFirmStatus.ACTIVE);
+
+            if (userFirm == null)
+                return null;
+
+            var firm = userFirm.Firm;
+            if (firm == null || !firm.IsActive)
+                return null;
+
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+                return null;
+
+            return await GenerateAuthResponse(user, firm, ipAddress);
         }
 
         public async Task<AuthResponseDto> RefreshToken(string refreshToken, string ipAddress)

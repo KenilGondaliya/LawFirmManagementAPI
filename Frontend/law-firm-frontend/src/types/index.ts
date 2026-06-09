@@ -32,6 +32,59 @@ export interface AuthResponse {
   requiresFirmSelection?: boolean;
 }
 
+export interface SwitchFirmDto {
+  firmId: number;
+}
+
+export interface ForgotPasswordDto {
+  email: string;
+}
+
+export interface ResetPasswordDto {
+  token: string;
+  email: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+export interface VerifyEmailDto {
+  token: string;
+}
+
+export interface ResendVerificationDto {
+  email: string;
+}
+
+export interface UpdateProfileDto {
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+}
+
+export interface ChangePasswordDto {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+export interface InviteUserDto {
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
+
+export interface InviteResponse {
+  userId: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  firmRole: string;
+  status: string;
+}
+
+
 export interface Matter {
   id: number;
   uuid: string;

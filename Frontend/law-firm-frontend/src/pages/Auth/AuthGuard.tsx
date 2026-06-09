@@ -1,4 +1,5 @@
 // src/components/Auth/AuthGuard.tsx
+
 import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
@@ -19,9 +20,8 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
       setIsChecking(false);
     };
     checkAuth();
-  }, []);
+  }, [initializeAuth]);
 
-  // Show loading while checking authentication
   if (isChecking || isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -30,11 +30,9 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     );
   }
 
-  // Not authenticated, redirect to login
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Authenticated, render children
   return <>{children}</>;
 };
