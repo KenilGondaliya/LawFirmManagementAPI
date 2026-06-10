@@ -1,5 +1,3 @@
-// src/App.tsx - Add ForgotPassword import and route
-
 import React, { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
@@ -60,7 +58,6 @@ function App() {
     init();
   }, [initializeAuth]);
 
-  // Show loading spinner while initializing
   if (!isInitialized || isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -141,7 +138,6 @@ function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
 
-        {/* Catch all - redirect to login */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

@@ -1,4 +1,3 @@
-// src/components/UI/Input.tsx
 import React from 'react';
 import { EyeIcon, EyeOffIcon } from 'lucide-react';
 

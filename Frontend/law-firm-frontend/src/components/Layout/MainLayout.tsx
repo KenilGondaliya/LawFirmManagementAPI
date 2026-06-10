@@ -1,9 +1,7 @@
-// src/components/Layout/MainLayout.tsx
 import React from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { useAuthStore } from '../../stores/authStore';
 
 const pageTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
@@ -25,11 +23,11 @@ export const MainLayout: React.FC = () => {
   const title = pageTitles[location.pathname] || 'Dashboard';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50">
       <Sidebar />
-      <div className="ml-64">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={title} />
-        <main className="p-8">
+        <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
         </main>
       </div>
