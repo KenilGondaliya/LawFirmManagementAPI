@@ -45,6 +45,7 @@ import { DocumentsList } from "./pages/Documents/DocumentsList";
 import { BillDetail } from "./pages/Billing/BillDetail";
 import { CreateBill } from "./pages/Billing/CreateBill";
 import { BillsList } from "./pages/Billing/BillsList";
+import { EditContact } from "./pages/Contacts/EditContact";
 
 function App() {
   const { initializeAuth, isLoading } = useAuthStore();
@@ -113,7 +114,7 @@ function App() {
           <Route path="/contacts" element={<ContactsList />} />
           <Route path="/contacts/:id" element={<ContactDetail />} />
           <Route path="/contacts/create" element={<CreateContact />} />
-          <Route path="/contacts/:id/edit" element={<CreateContact />} />
+          <Route path="/contacts/:id/edit" element={<EditContact />} />
           <Route path="/calendar" element={<CalendarView />} />
           <Route path="/calendar/events/create" element={<EventCreate />} />
           <Route path="/calendar/events/:id" element={<EventView />} />

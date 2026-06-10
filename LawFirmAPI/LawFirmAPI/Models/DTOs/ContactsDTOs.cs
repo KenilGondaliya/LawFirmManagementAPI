@@ -26,6 +26,7 @@ namespace LawFirmAPI.Models.DTOs
         public string? ProfileImageUrl { get; set; }
         public long? ContactTypeId { get; set; }
         public string? ContactTypeName { get; set; }
+        public List<TagDto> Tags { get; set; } = new();
         public List<ContactAddressDto> Addresses { get; set; } = new();
         public List<ContactPhoneDto> Phones { get; set; } = new();
         public List<ContactEmailDto> Emails { get; set; } = new();

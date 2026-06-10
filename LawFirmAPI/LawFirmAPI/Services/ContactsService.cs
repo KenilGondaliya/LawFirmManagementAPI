@@ -115,10 +115,20 @@ namespace LawFirmAPI.Services
                     Email = e.Email,
                     IsPrimary = e.IsPrimary
                 }).ToList(),
+                // ✅ Add tags mapping
+                Tags = c.Tags?
+                    .Where(ct => ct.Tag != null)
+                    .Select(ct => new TagDto
+                    {
+                        Id = ct.Tag!.Id,
+                        Name = ct.Tag.Name,
+                        Color = ct.Tag.Color
+                    }).ToList() ?? new List<TagDto>(),
                 CreatedAt = c.CreatedAt,
                 UpdatedAt = c.UpdatedAt
             };
         }
+
 
         // ✅ Alternative: Use Projection Instead of MapToDto in LINQ
         public async Task<List<ContactDto>> GetAllContacts(long firmId, string? search, bool? isClient)
@@ -158,9 +168,27 @@ namespace LawFirmAPI.Services
                 .Include(c => c.Addresses)
                 .Include(c => c.Phones)
                 .Include(c => c.Emails)
+                .Include(c => c.Tags)
+                    .ThenInclude(ct => ct.Tag)
                 .FirstOrDefaultAsync(c => c.Id == id && c.FirmId == firmId && c.DeletedAt == null);
 
-            return contact != null ? MapToDto(contact) : null;
+            if (contact == null)
+                return null;
+
+
+            var contactDto = MapToDto(contact);
+
+
+            contactDto.Tags = contact.Tags?
+                .Where(ct => ct.Tag != null)
+                .Select(ct => new TagDto
+                {
+                    Id = ct.Tag!.Id,
+                    Name = ct.Tag.Name,
+                    Color = ct.Tag.Color
+                }).ToList() ?? new List<TagDto>();
+
+            return contactDto;
         }
 
         public async Task<ContactDto> CreateContact(long firmId, long userId, CreateContactDto createDto)

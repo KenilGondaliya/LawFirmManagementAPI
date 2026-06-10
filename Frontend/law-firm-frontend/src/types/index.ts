@@ -198,35 +198,71 @@ export interface MatterStats {
   litigation: number;
   nonLitigation: number;
 }
+// src/types/index.ts - Update Contact interface
+
 export interface Contact {
   id: number;
   uuid: string;
   firstName: string;
   lastName: string;
   fullName: string;
+  
+  // Contact Information
   email?: string;
+  alternativeEmail?: string;
   phone?: string;
+  alternativePhone?: string;
+  fax?: string;
+  website?: string;
+  
+  // Professional Information
   companyName?: string;
   title?: string;
   department?: string;
+  
+  // Personal Information
+  prefix?: string;
+  middleName?: string;
+  suffix?: string;
+  nickname?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  maritalStatus?: string;
+  anniversary?: string;
+  nationality?: string;
+  
+  // Legal Information
+  taxId?: string;
+  identificationNumber?: string;
+  identificationType?: string;
+  
+  // Classification
   isClient: boolean;
   isOpponent: boolean;
   isWitness: boolean;
   isJudge: boolean;
   isAdvocate: boolean;
   isImportant: boolean;
+  
+  // Additional
   notes?: string;
   profileImageUrl?: string;
   contactTypeId?: number;
   contactTypeName?: string;
+  
+  // Relationships
   addresses: ContactAddress[];
   phones: ContactPhone[];
   emails: ContactEmail[];
   tags?: Tag[];
   spouse?: ContactRelationship;
   relatives?: ContactRelationship[];
+  
+  // Metadata
+  createdBy?: number;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
 }
 
 export interface ContactAddress {
@@ -275,6 +311,14 @@ export interface ContactRelationship {
   relatedContactName: string;
   relationshipType: string;
   notes?: string;
+  createdAt: string;
+}
+export interface ContactType {
+  id: number;
+  name: string;
+  description?: string;
+  color?: string;
+  isSystem: boolean;
   createdAt: string;
 }
 
