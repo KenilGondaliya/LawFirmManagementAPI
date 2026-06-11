@@ -1,4 +1,4 @@
-// src/services/auth.service.ts - Complete version
+// src/services/auth.service.ts - COMPLETE FIXED VERSION
 
 import api from './api';
 import { 
@@ -11,7 +11,6 @@ import {
   ChangePasswordDto, 
   InviteUserDto, 
   InviteResponse,
-  SwitchFirmDto,
   ForgotPasswordDto,
   ResetPasswordDto,
   VerifyEmailDto,
@@ -88,8 +87,15 @@ export const authService = {
     return response.data;
   },
   
+  // ✅ FIXED: Accept invitation and return the response with new token
   acceptInvite: async (email: string, firstName?: string, lastName?: string): Promise<AuthResponse> => {
     const response = await api.post('/auth/accept-invite', { email, firstName, lastName });
+    return response.data;
+  },
+  
+  // ✅ NEW: Get pending invitations for current user
+  getPendingInvitations: async (): Promise<any[]> => {
+    const response = await api.get('/auth/invitations/pending');
     return response.data;
   },
 };

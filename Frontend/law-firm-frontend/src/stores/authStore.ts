@@ -1,4 +1,4 @@
-// src/stores/authStore.ts - Add missing methods
+// src/stores/authStore.ts - COMPLETE FIXED VERSION
 
 import { create } from 'zustand';
 import { devtools, persist } from 'zustand/middleware';
@@ -42,6 +42,7 @@ interface AuthState {
   // Utility
   clearAuth: () => void;
   initializeAuth: () => Promise<void>;
+  setAuthFromResponse: (response: AuthResponse) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -61,22 +62,7 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, authError: null });
           try {
             const response = await authService.login(emailOrUsername, password, firmId);
-            
-            localStorage.setItem('accessToken', response.accessToken);
-            localStorage.setItem('refreshToken', response.refreshToken);
-            
-            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
-            
-            set({
-              user: response.user,
-              firms: response.firms,
-              currentFirm: response.currentFirm || null,
-              isAuthenticated: true,
-              requiresFirmCreation: response.requiresFirmCreation || false,
-              requiresFirmSelection: response.requiresFirmSelection || false,
-              isLoading: false,
-              authError: null,
-            });
+            get().setAuthFromResponse(response);
           } catch (error: any) {
             set({ 
               isLoading: false, 
@@ -90,22 +76,7 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, authError: null });
           try {
             const response = await authService.register(data);
-            
-            localStorage.setItem('accessToken', response.accessToken);
-            localStorage.setItem('refreshToken', response.refreshToken);
-            
-            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
-            
-            set({
-              user: response.user,
-              firms: response.firms,
-              currentFirm: null,
-              isAuthenticated: true,
-              requiresFirmCreation: true,
-              requiresFirmSelection: false,
-              isLoading: false,
-              authError: null,
-            });
+            get().setAuthFromResponse(response);
           } catch (error: any) {
             set({ 
               isLoading: false, 
@@ -119,22 +90,7 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, authError: null });
           try {
             const response = await authService.createFirm(data);
-            
-            localStorage.setItem('accessToken', response.accessToken);
-            localStorage.setItem('refreshToken', response.refreshToken);
-            
-            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
-            
-            set({
-              user: response.user,
-              firms: response.firms,
-              currentFirm: response.currentFirm,
-              isAuthenticated: true,
-              requiresFirmCreation: false,
-              requiresFirmSelection: false,
-              isLoading: false,
-              authError: null,
-            });
+            get().setAuthFromResponse(response);
           } catch (error: any) {
             set({ 
               isLoading: false, 
@@ -148,22 +104,7 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, authError: null });
           try {
             const response = await authService.switchFirm(firmId);
-            
-            // Update tokens
-            localStorage.setItem('accessToken', response.accessToken);
-            localStorage.setItem('refreshToken', response.refreshToken);
-            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
-            
-            set({
-              user: response.user,
-              firms: response.firms,
-              currentFirm: response.currentFirm,
-              isAuthenticated: true,
-              requiresFirmCreation: false,
-              requiresFirmSelection: false,
-              isLoading: false,
-              authError: null,
-            });
+            get().setAuthFromResponse(response);
           } catch (error: any) {
             set({ 
               isLoading: false, 
@@ -173,13 +114,52 @@ export const useAuthStore = create<AuthState>()(
           }
         },
         
+        // ✅ FIXED: Accept invitation and update tokens
+        acceptInvite: async (email, firstName, lastName) => {
+          set({ isLoading: true, authError: null });
+          try {
+            const response = await authService.acceptInvite(email, firstName, lastName);
+            
+            // ✅ CRITICAL: Update tokens in localStorage and axios headers
+            get().setAuthFromResponse(response);
+            
+            set({ isLoading: false });
+          } catch (error: any) {
+            set({ 
+              isLoading: false, 
+              authError: error.response?.data?.message || 'Failed to accept invitation' 
+            });
+            throw error;
+          }
+        },
+        
+        // ✅ NEW: Helper method to set auth from response
+        setAuthFromResponse: (response: AuthResponse) => {
+          // Store tokens
+          if (response.accessToken) {
+            localStorage.setItem('accessToken', response.accessToken);
+            localStorage.setItem('refreshToken', response.refreshToken);
+            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
+          }
+          
+          set({
+            user: response.user,
+            firms: response.firms,
+            currentFirm: response.currentFirm || null,
+            isAuthenticated: true,
+            requiresFirmCreation: response.requiresFirmCreation || false,
+            requiresFirmSelection: response.requiresFirmSelection || false,
+            isLoading: false,
+            authError: null,
+          });
+        },
+        
         logout: async () => {
           const refreshToken = localStorage.getItem('refreshToken');
           if (refreshToken) {
             await authService.logout(refreshToken).catch(console.error);
           }
           get().clearAuth();
-          window.location.href = '/login';
         },
         
         setCurrentFirm: (firm) => {
@@ -215,37 +195,12 @@ export const useAuthStore = create<AuthState>()(
         
         verifyEmail: async (token) => {
           await authService.verifyEmail(token);
-          // Update user email verification status
           const profile = await authService.getProfile();
           set({ user: profile });
         },
         
         inviteUser: async (data) => {
           return await authService.inviteUser(data);
-        },
-        
-        acceptInvite: async (email, firstName, lastName) => {
-          set({ isLoading: true });
-          try {
-            const response = await authService.acceptInvite(email, firstName, lastName);
-            
-            localStorage.setItem('accessToken', response.accessToken);
-            localStorage.setItem('refreshToken', response.refreshToken);
-            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
-            
-            set({
-              user: response.user,
-              firms: response.firms,
-              currentFirm: response.currentFirm,
-              isAuthenticated: true,
-              requiresFirmCreation: false,
-              requiresFirmSelection: false,
-              isLoading: false,
-            });
-          } catch (error) {
-            set({ isLoading: false });
-            throw error;
-          }
         },
         
         clearAuth: () => {
@@ -270,21 +225,7 @@ export const useAuthStore = create<AuthState>()(
           
           try {
             const response = await authService.refreshToken(refreshToken);
-            
-            localStorage.setItem('accessToken', response.accessToken);
-            localStorage.setItem('refreshToken', response.refreshToken);
-            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
-            
-            set({
-              user: response.user,
-              firms: response.firms,
-              currentFirm: response.currentFirm,
-              isAuthenticated: true,
-              requiresFirmCreation: false,
-              requiresFirmSelection: false,
-              isLoading: false,
-              authError: null,
-            });
+            get().setAuthFromResponse(response);
             return true;
           } catch (error) {
             console.error('Token refresh failed:', error);
@@ -301,9 +242,8 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: true, authError: null });
           
           const accessToken = localStorage.getItem('accessToken');
-          const refreshToken = localStorage.getItem('refreshToken');
           
-          if (!accessToken || !refreshToken) {
+          if (!accessToken) {
             get().clearAuth();
             set({ isLoading: false });
             return;
@@ -314,7 +254,7 @@ export const useAuthStore = create<AuthState>()(
           try {
             const profile = await authService.getProfile();
             
-            // Try to restore stored firms from localStorage
+            // Restore stored firms from localStorage
             const storedState = localStorage.getItem('auth-storage');
             let firms: Firm[] = [];
             let currentFirm: Firm | null = null;

@@ -38,10 +38,10 @@ interface MatterFormData {
 }
 
 const priorityOptions = [
-  { value: 'LOW', label: 'Low', color: 'blue' },
-  { value: 'MEDIUM', label: 'Medium', color: 'yellow' },
-  { value: 'HIGH', label: 'High', color: 'orange' },
-  { value: 'URGENT', label: 'Urgent', color: 'red' },
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'URGENT', label: 'Urgent' },
 ];
 
 const billingMethodOptions = [
@@ -66,9 +66,8 @@ export const CreateMatter: React.FC = () => {
   const { createMatter, matterTypes, fetchMatterTypes, practiceAreas, fetchPracticeAreas } = useMatterStore();
   const { contacts, fetchContacts } = useContactStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedBillingMethod, setSelectedBillingMethod] = useState('HOURLY');
 
-  const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<MatterFormData>({
+  const { register, control, handleSubmit, watch, formState: { errors } } = useForm<MatterFormData>({
     defaultValues: {
       priority: 'MEDIUM',
       billingMethod: 'HOURLY',
@@ -92,13 +91,35 @@ export const CreateMatter: React.FC = () => {
   const onSubmit = async (data: MatterFormData) => {
     setIsSubmitting(true);
     try {
-      const matter = await createMatter(data);
+      const matter = await createMatter({
+        matterTypeId: data.matterTypeId,
+        title: data.title,
+        description: data.description,
+        status: 'OPEN',
+        priority: data.priority,
+        openDate: data.openDate,
+        pendingDate: data.pendingDate,
+        statuteOfLimitationsDate: data.statuteOfLimitationsDate,
+        estimatedValue: data.estimatedValue,
+        billingMethod: data.billingMethod,
+        hourlyRate: data.hourlyRate,
+        fixedFee: data.fixedFee,
+        originatingAdvocateId: data.originatingAdvocateId,
+        responsibleAdvocateId: data.responsibleAdvocateId,
+        practiceAreaId: data.practiceAreaId,
+        courtId: data.courtId,
+        judicialDistrictId: data.judicialDistrictId,
+        clientReference: data.clientReference,
+        isConfidential: data.isConfidential,
+        parties: data.parties.filter(p => p.contactId !== 0)
+      });
       if (matter) {
+        toast.success('Matter created successfully');
         navigate(`/matters/${matter.id}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create matter:', error);
-      toast.error('Failed to create matter');
+      toast.error(error.response?.data?.message || 'Failed to create matter');
     } finally {
       setIsSubmitting(false);
     }
@@ -245,7 +266,6 @@ export const CreateMatter: React.FC = () => {
               <select
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 {...register('billingMethod')}
-                onChange={(e) => setSelectedBillingMethod(e.target.value)}
               >
                 {billingMethodOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -285,13 +305,15 @@ export const CreateMatter: React.FC = () => {
               {...register('clientReference')}
             />
             <Input
-              label="Court"
-              placeholder="Court name"
+              label="Court ID"
+              type="number"
+              placeholder="Court ID"
               {...register('courtId')}
             />
             <Input
-              label="Judicial District"
-              placeholder="Judicial district"
+              label="Judicial District ID"
+              type="number"
+              placeholder="Judicial district ID"
               {...register('judicialDistrictId')}
             />
           </div>

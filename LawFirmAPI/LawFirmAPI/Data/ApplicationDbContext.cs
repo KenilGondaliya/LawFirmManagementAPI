@@ -46,6 +46,8 @@ namespace LawFirmAPI.Data
         public DbSet<PracticeArea> PracticeAreas { get; set; }
         public DbSet<Court> Courts { get; set; }
         public DbSet<JudicialDistrict> JudicialDistricts { get; set; }
+        public DbSet<TimeEntry> TimeEntries { get; set; }
+        public DbSet<MatterDeadline> MatterDeadlines { get; set; }
 
         // Module 5: Contacts
         public DbSet<Contact> Contacts { get; set; }

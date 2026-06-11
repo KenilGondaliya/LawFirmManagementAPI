@@ -25,10 +25,10 @@ interface EditMatterFormData {
 }
 
 const priorityOptions = [
-  { value: 'LOW', label: 'Low', color: 'blue' },
-  { value: 'MEDIUM', label: 'Medium', color: 'yellow' },
-  { value: 'HIGH', label: 'High', color: 'orange' },
-  { value: 'URGENT', label: 'Urgent', color: 'red' },
+  { value: 'LOW', label: 'Low' },
+  { value: 'MEDIUM', label: 'Medium' },
+  { value: 'HIGH', label: 'High' },
+  { value: 'URGENT', label: 'Urgent' },
 ];
 
 const billingMethodOptions = [
@@ -41,7 +41,15 @@ const billingMethodOptions = [
 export const EditMatter: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { selectedMatter, isLoading, fetchMatterById, updateMatter, clearSelectedMatter, practiceAreas, fetchPracticeAreas } = useMatterStore();
+  const { 
+    selectedMatter, 
+    isLoading, 
+    fetchMatterById, 
+    updateMatter, 
+    clearSelectedMatter, 
+    practiceAreas, 
+    fetchPracticeAreas 
+  } = useMatterStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<EditMatterFormData>();
@@ -76,13 +84,26 @@ export const EditMatter: React.FC = () => {
     if (!id) return;
     setIsSubmitting(true);
     try {
-      const matter = await updateMatter(parseInt(id), data);
+      const matter = await updateMatter(parseInt(id), {
+        title: data.title,
+        description: data.description,
+        priority: data.priority,
+        estimatedValue: data.estimatedValue,
+        billingMethod: data.billingMethod,
+        hourlyRate: data.hourlyRate,
+        fixedFee: data.fixedFee,
+        responsibleAdvocateId: data.responsibleAdvocateId,
+        practiceAreaId: data.practiceAreaId,
+        clientReference: data.clientReference,
+        closedDate: data.closedDate,
+      } as any);
       if (matter) {
+        toast.success('Matter updated successfully');
         navigate(`/matters/${id}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update matter:', error);
-      toast.error('Failed to update matter');
+      toast.error(error.response?.data?.message || 'Failed to update matter');
     } finally {
       setIsSubmitting(false);
     }

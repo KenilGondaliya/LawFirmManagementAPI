@@ -24,10 +24,10 @@ namespace LawFirmAPI.Controllers
 
         // Basic Matter Operations
         [HttpGet]
-        public async Task<IActionResult> GetAllMatters([FromQuery] string? status, [FromQuery] string? priority, [FromQuery] string? search)
+        public async Task<IActionResult> GetAllMatters([FromQuery] string? status, [FromQuery] string? priority, [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
-            var matters = await _mattersService.GetAllMatters(firmId, status, priority, search);
+            var matters = await _mattersService.GetAllMatters(firmId, status, priority, search, page, pageSize);
             return Ok(matters);
         }
 
@@ -100,7 +100,7 @@ namespace LawFirmAPI.Controllers
         public async Task<IActionResult> GetLitigationMatters()
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
-            var matters = await _mattersService.GetAllMatters(firmId, null, null, null);
+            var matters = await _mattersService.GetAllMatters(firmId, null, null, null, 1, 20);
             // Filter by matter type category = LITIGATION
             return Ok(matters);
         }
@@ -109,7 +109,7 @@ namespace LawFirmAPI.Controllers
         public async Task<IActionResult> GetNonLitigationMatters()
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
-            var matters = await _mattersService.GetAllMatters(firmId, null, null, null);
+            var matters = await _mattersService.GetAllMatters(firmId, null, null, null, 1, 20);
             // Filter by matter type category = NON_LITIGATION
             return Ok(matters);
         }
@@ -206,7 +206,7 @@ namespace LawFirmAPI.Controllers
         public async Task<IActionResult> GetOpenMatters()
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
-            var matters = await _mattersService.GetAllMatters(firmId, "OPEN", null, null);
+            var matters = await _mattersService.GetAllMatters(firmId, "OPEN", null, null, 1, 20);
             return Ok(matters);
         }
 
@@ -214,7 +214,7 @@ namespace LawFirmAPI.Controllers
         public async Task<IActionResult> GetPendingMatters()
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
-            var matters = await _mattersService.GetAllMatters(firmId, "PENDING", null, null);
+            var matters = await _mattersService.GetAllMatters(firmId, "PENDING", null, null, 1, 20);
             return Ok(matters);
         }
 
@@ -222,7 +222,7 @@ namespace LawFirmAPI.Controllers
         public async Task<IActionResult> GetClosedMatters()
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
-            var matters = await _mattersService.GetAllMatters(firmId, "CLOSED", null, null);
+            var matters = await _mattersService.GetAllMatters(firmId, "CLOSED", null, null, 1, 20);
             return Ok(matters);
         }
 

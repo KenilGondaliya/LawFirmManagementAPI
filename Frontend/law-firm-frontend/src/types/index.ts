@@ -84,7 +84,6 @@ export interface InviteResponse {
   status: string;
 }
 
-
 export interface Matter {
   id: number;
   uuid: string;

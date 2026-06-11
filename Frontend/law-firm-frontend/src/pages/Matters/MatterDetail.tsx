@@ -18,9 +18,6 @@ import {
   PlusIcon,
   XMarkIcon,
   ChatBubbleLeftRightIcon,
-  EnvelopeIcon,
-  PhoneIcon,
-  MapPinIcon,
   BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
 import { useMatterStore } from '../../stores/matterStore';
@@ -69,22 +66,38 @@ export const MatterDetail: React.FC = () => {
     addMatterParty, 
     removeMatterParty, 
     addMatterNote, 
-    deleteMatterNote 
+    deleteMatterNote,
+    fetchMatterDocuments,
+    fetchMatterTasks,
+    fetchMatterEvents,
+    fetchMatterBills,
+    fetchMatterTimeline,
+    documents,
+    tasks,
+    events,
+    bills,
+    timeline
   } = useMatterStore();
   const { contacts, fetchContacts } = useContactStore();
   
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAddPartyModal, setShowAddPartyModal] = useState(false);
   const [showAddNoteModal, setShowAddNoteModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'parties' | 'notes' | 'timeline'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'parties' | 'notes' | 'documents' | 'tasks' | 'events' | 'bills' | 'timeline'>('details');
   const [newParty, setNewParty] = useState({ contactId: 0, partyType: 'CLIENT', roleDescription: '', isPrimary: false });
   const [newNote, setNewNote] = useState({ note: '', isPrivate: false });
   const [statusChanging, setStatusChanging] = useState(false);
 
   useEffect(() => {
     if (id) {
-      fetchMatterById(parseInt(id));
+      const matterId = parseInt(id);
+      fetchMatterById(matterId);
       fetchContacts({});
+      fetchMatterDocuments(matterId);
+      fetchMatterTasks(matterId);
+      fetchMatterEvents(matterId);
+      fetchMatterBills(matterId);
+      fetchMatterTimeline(matterId);
     }
     return () => {
       clearSelectedMatter();
@@ -140,6 +153,16 @@ export const MatterDetail: React.FC = () => {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
+    });
+  };
+
+  const formatDateTime = (date: string) => {
+    return new Date(date).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -211,11 +234,15 @@ export const MatterDetail: React.FC = () => {
 
       {/* Tabs */}
       <div className="border-b border-gray-200 overflow-x-auto">
-        <nav className="flex gap-6 md:gap-8 min-w-max">
+        <nav className="flex gap-4 md:gap-6 min-w-max">
           {[
             { key: 'details', label: 'Details', icon: DocumentTextIcon },
             { key: 'parties', label: 'Parties', icon: UsersIcon },
             { key: 'notes', label: 'Notes', icon: ChatBubbleLeftRightIcon },
+            { key: 'documents', label: 'Documents', icon: DocumentTextIcon },
+            { key: 'tasks', label: 'Tasks', icon: CheckCircleIcon },
+            { key: 'events', label: 'Events', icon: CalendarIcon },
+            { key: 'bills', label: 'Bills', icon: CurrencyDollarIcon },
             { key: 'timeline', label: 'Timeline', icon: ClockIcon },
           ].map((tab) => (
             <button
@@ -520,6 +547,168 @@ export const MatterDetail: React.FC = () => {
         </Card>
       )}
 
+      {/* Content - Documents Tab */}
+      {activeTab === 'documents' && (
+        <Card>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <DocumentTextIcon className="w-5 h-5 text-primary-500" />
+            Documents
+          </h3>
+          {documents.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">File Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Uploaded By</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Size</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {documents.map((doc) => (
+                    <tr key={doc.id} className="hover:bg-gray-50 cursor-pointer">
+                      <td className="px-6 py-4 text-sm text-gray-900">{doc.title}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{doc.fileName}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{doc.uploadedByName || '-'}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{formatDate(doc.uploadedAt)}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{(doc.fileSize / 1024).toFixed(2)} KB</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <DocumentTextIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No documents uploaded for this matter</p>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Content - Tasks Tab */}
+      {activeTab === 'tasks' && (
+        <Card>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <CheckCircleIcon className="w-5 h-5 text-primary-500" />
+            Tasks
+          </h3>
+          {tasks.length > 0 ? (
+            <div className="space-y-3">
+              {tasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">{task.title}</p>
+                    {task.dueDate && (
+                      <p className="text-sm text-gray-500">Due: {formatDate(task.dueDate)}</p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {task.statusName && (
+                      <span className={`px-2 py-1 text-xs rounded-full bg-${task.statusColor || 'gray'}-100 text-${task.statusColor || 'gray'}-800`}>
+                        {task.statusName}
+                      </span>
+                    )}
+                    {task.priorityName && (
+                      <span className={`px-2 py-1 text-xs rounded-full bg-${task.priorityColor || 'gray'}-100 text-${task.priorityColor || 'gray'}-800`}>
+                        {task.priorityName}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <CheckCircleIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No tasks created for this matter</p>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Content - Events Tab */}
+      {activeTab === 'events' && (
+        <Card>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <CalendarIcon className="w-5 h-5 text-primary-500" />
+            Events
+          </h3>
+          {events.length > 0 ? (
+            <div className="space-y-3">
+              {events.map((event) => (
+                <div key={event.id} className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-gray-900">{event.title}</p>
+                      <p className="text-sm text-gray-500">
+                        {formatDateTime(event.startDateTime)} - {formatDateTime(event.endDateTime)}
+                      </p>
+                      {event.location && <p className="text-sm text-gray-500 mt-1">📍 {event.location}</p>}
+                    </div>
+                    <span className="px-2 py-1 text-xs rounded-full bg-primary-100 text-primary-700">
+                      {event.eventType}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <CalendarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No events scheduled for this matter</p>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Content - Bills Tab */}
+      {activeTab === 'bills' && (
+        <Card>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <CurrencyDollarIcon className="w-5 h-5 text-primary-500" />
+            Bills
+          </h3>
+          {bills.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bill Number</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Balance Due</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {bills.map((bill) => (
+                    <tr key={bill.id} className="hover:bg-gray-50 cursor-pointer">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{bill.billNumber}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">${bill.totalAmount.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">${bill.balanceDue.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{formatDate(bill.dueDate)}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 text-xs rounded-full bg-${bill.statusColor || 'gray'}-100 text-${bill.statusColor || 'gray'}-800`}>
+                          {bill.statusName}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <CurrencyDollarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No bills generated for this matter</p>
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* Content - Timeline Tab */}
       {activeTab === 'timeline' && (
         <Card>
@@ -541,41 +730,18 @@ export const MatterDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* Status Change Activities */}
-              {selectedMatter.pendingDate && (
-                <div className="relative pl-10">
-                  <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
-                    <ClockIcon className="w-4 h-4 text-yellow-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Status Changed to Pending</p>
-                    <p className="text-sm text-gray-500">{formatDate(selectedMatter.pendingDate)}</p>
-                  </div>
-                </div>
-              )}
-
-              {selectedMatter.closedDate && (
-                <div className="relative pl-10">
-                  <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                    <ArchiveBoxIcon className="w-4 h-4 text-gray-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Matter Closed</p>
-                    <p className="text-sm text-gray-500">{formatDate(selectedMatter.closedDate)}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Note Activities */}
-              {selectedMatter.notes && selectedMatter.notes.map((note, index) => (
-                <div key={note.id} className="relative pl-10">
+              {/* Timeline Activities */}
+              {timeline.map((activity) => (
+                <div key={activity.id} className="relative pl-10">
                   <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <ChatBubbleLeftRightIcon className="w-4 h-4 text-blue-600" />
+                    <ClockIcon className="w-4 h-4 text-blue-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">Note Added</p>
-                    <p className="text-sm text-gray-500">{new Date(note.createdAt).toLocaleString()}</p>
-                    <p className="text-sm text-gray-600 mt-1">{note.note.substring(0, 100)}...</p>
+                    <p className="font-medium text-gray-900">{activity.activityType}</p>
+                    <p className="text-sm text-gray-500">{activity.description}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {activity.userName ? `by ${activity.userName} • ` : ''}{formatDateTime(activity.createdAt)}
+                    </p>
                   </div>
                 </div>
               ))}

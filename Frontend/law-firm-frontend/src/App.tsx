@@ -46,6 +46,7 @@ import { BillDetail } from "./pages/Billing/BillDetail";
 import { CreateBill } from "./pages/Billing/CreateBill";
 import { BillsList } from "./pages/Billing/BillsList";
 import { EditContact } from "./pages/Contacts/EditContact";
+import { AcceptInvite } from "./pages/Auth/AcceptInvite";
 
 function App() {
   const { initializeAuth, isLoading } = useAuthStore();
@@ -103,6 +104,8 @@ function App() {
         <Route path="/select-firm" element={<SelectFirm />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/resend-verification" element={<ResendVerification />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+
 
         {/* Protected Routes */}
         <Route element={<AuthGuard><MainLayout /></AuthGuard>}>

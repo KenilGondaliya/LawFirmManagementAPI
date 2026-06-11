@@ -13,6 +13,8 @@ import {
   ArchiveBoxIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  TrashIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useMatterStore } from '../../stores/matterStore';
 import { Button } from '../../components/UI/Button';
@@ -20,6 +22,7 @@ import { Input } from '../../components/UI/Input';
 import { Card } from '../../components/UI/Card';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { EmptyState } from '../../components/Common/EmptyState';
+import { MatterFilters } from './MatterFilters';
 
 const statusColors: Record<string, string> = {
   OPEN: 'bg-green-100 text-green-800',
@@ -35,9 +38,6 @@ const priorityColors: Record<string, string> = {
   URGENT: 'bg-red-100 text-red-800',
 };
 
-const statusOptions = ['OPEN', 'PENDING', 'CLOSED', 'ARCHIVED'];
-const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
-
 export const MattersList: React.FC = () => {
   const navigate = useNavigate();
   const { 
@@ -48,41 +48,68 @@ export const MattersList: React.FC = () => {
     stats,
     totalPages,
     currentPage,
-    setCurrentPage 
+    searchQuery,
+    statusFilter,
+    priorityFilter,
+    setCurrentPage,
+    setSearchQuery,
+    setStatusFilter,
+    setPriorityFilter,
+    clearFilters,
+    bulkDeleteMatters,
+    bulkUpdateStatus,
   } = useMatterStore();
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [priorityFilter, setPriorityFilter] = useState<string>('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedMatters, setSelectedMatters] = useState<number[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
 
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(searchTerm);
+      if (debouncedSearch !== searchQuery) {
+        setSearchQuery(debouncedSearch);
+      }
     }, 500);
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [debouncedSearch, searchQuery, setSearchQuery]);
 
   useEffect(() => {
-    fetchMatters({ 
-      search: debouncedSearch || undefined, 
-      status: statusFilter || undefined, 
-      priority: priorityFilter || undefined,
-      page: currentPage 
-    });
+    fetchMatters({ page: currentPage });
     fetchStats();
-  }, [debouncedSearch, statusFilter, priorityFilter, currentPage]);
+  }, [currentPage, searchQuery, statusFilter, priorityFilter]);
 
-  const clearFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('');
-    setPriorityFilter('');
-    setCurrentPage(1);
+  const handleSelectAll = () => {
+    if (selectedMatters.length === matters.length) {
+      setSelectedMatters([]);
+    } else {
+      setSelectedMatters(matters.map(m => m.id));
+    }
   };
 
-  const hasActiveFilters = searchTerm || statusFilter || priorityFilter;
+  const handleSelectMatter = (id: number) => {
+    setSelectedMatters(prev => 
+      prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
+    );
+  };
+
+  useEffect(() => {
+    setShowBulkActions(selectedMatters.length > 0);
+  }, [selectedMatters]);
+
+  const handleBulkDelete = async () => {
+    if (confirm(`Are you sure you want to delete ${selectedMatters.length} matter(s)?`)) {
+      await bulkDeleteMatters(selectedMatters);
+      setSelectedMatters([]);
+    }
+  };
+
+  const handleBulkStatusUpdate = async (status: string) => {
+    await bulkUpdateStatus({ matterIds: selectedMatters, status });
+    setSelectedMatters([]);
+    setShowStatusDropdown(false);
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -92,6 +119,8 @@ export const MattersList: React.FC = () => {
       default: return null;
     }
   };
+
+  const hasActiveFilters = searchQuery || statusFilter || priorityFilter;
 
   return (
     <div className="space-y-6">
@@ -173,17 +202,13 @@ export const MattersList: React.FC = () => {
           <div className="flex-1">
             <Input
               placeholder="Search by title, matter number, or client..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={debouncedSearch}
+              onChange={(e) => setDebouncedSearch(e.target.value)}
               icon={<MagnifyingGlassIcon className="w-4 h-4" />}
             />
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowFilters(!showFilters)}>
-              <FunnelIcon className="w-4 h-4 mr-2" />
-              Filters
-              {hasActiveFilters && <span className="ml-2 w-2 h-2 bg-primary-500 rounded-full"></span>}
-            </Button>
+            <MatterFilters />
             {hasActiveFilters && (
               <Button variant="ghost" onClick={clearFilters}>
                 <XMarkIcon className="w-4 h-4 mr-2" />
@@ -192,71 +217,53 @@ export const MattersList: React.FC = () => {
             )}
           </div>
         </div>
+      </Card>
 
-        {showFilters && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => { setStatusFilter(''); setCurrentPage(1); }}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      statusFilter === ''
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    All
-                  </button>
-                  {statusOptions.map((status) => (
+      {/* Bulk Actions Bar */}
+      {showBulkActions && (
+        <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={selectedMatters.length === matters.length && matters.length > 0}
+              onChange={handleSelectAll}
+              className="w-4 h-4 rounded border-gray-300 text-primary-600"
+            />
+            <span className="text-sm text-gray-700">
+              {selectedMatters.length} matter{selectedMatters.length !== 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div className="flex gap-2">
+            <div className="relative">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              >
+                <ClockIcon className="w-4 h-4 mr-1" />
+                Change Status
+              </Button>
+              {showStatusDropdown && (
+                <div className="absolute right-0 mt-1 w-36 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                  {['OPEN', 'PENDING', 'CLOSED', 'ARCHIVED'].map(status => (
                     <button
                       key={status}
-                      onClick={() => { setStatusFilter(status); setCurrentPage(1); }}
-                      className={`px-3 py-1 rounded-full text-sm transition-colors flex items-center gap-1 ${
-                        statusFilter === status
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
+                      onClick={() => handleBulkStatusUpdate(status)}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      {getStatusIcon(status)}
                       {status}
                     </button>
                   ))}
                 </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => { setPriorityFilter(''); setCurrentPage(1); }}
-                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                      priorityFilter === ''
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    All
-                  </button>
-                  {priorityOptions.map((priority) => (
-                    <button
-                      key={priority}
-                      onClick={() => { setPriorityFilter(priority); setCurrentPage(1); }}
-                      className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                        priorityFilter === priority
-                          ? 'bg-primary-600 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {priority}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              )}
             </div>
+            <Button variant="danger" size="sm" onClick={handleBulkDelete}>
+              <TrashIcon className="w-4 h-4 mr-1" />
+              Delete
+            </Button>
           </div>
-        )}
-      </Card>
+        </div>
+      )}
 
       {/* Matters List */}
       {isLoading ? (
@@ -277,14 +284,23 @@ export const MattersList: React.FC = () => {
             {matters.map((matter) => (
               <Card
                 key={matter.id}
-                className="p-4"
+                className={`p-4 transition-all ${selectedMatters.includes(matter.id) ? 'border-primary-500 bg-primary-50' : ''}`}
               >
-                <div 
-                  className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 cursor-pointer hover:shadow-md transition-all hover:border-primary-200 group"
-                  onClick={() => navigate(`/matters/${matter.id}`)}
-                >
-                  {/* Left Section */}
-                  <div className="flex-1">
+                <div className="flex items-start gap-3">
+                  {/* Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={selectedMatters.includes(matter.id)}
+                    onChange={() => handleSelectMatter(matter.id)}
+                    className="mt-1 w-4 h-4 rounded border-gray-300 text-primary-600"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  
+                  {/* Matter Content */}
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => navigate(`/matters/${matter.id}`)}
+                  >
                     <div className="flex flex-wrap items-center gap-2 mb-2">
                       <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
                         {matter.matterNumber}
@@ -308,7 +324,8 @@ export const MattersList: React.FC = () => {
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs md:text-sm text-gray-500">
                       {matter.responsibleAdvocateName && (
                         <span className="flex items-center gap-1">
-                          👤 {matter.responsibleAdvocateName}
+                          <UserGroupIcon className="w-3 h-3" />
+                          {matter.responsibleAdvocateName}
                         </span>
                       )}
                       {matter.practiceAreaName && (
@@ -328,17 +345,17 @@ export const MattersList: React.FC = () => {
                   </div>
 
                   {/* Right Section */}
-                  <div className="flex items-center gap-3 lg:border-l lg:border-gray-200 lg:pl-4">
+                  <div className="flex items-center gap-3">
                     {matter.priority === 'URGENT' && (
                       <div className="flex items-center gap-1 text-red-600 text-sm bg-red-50 px-2 py-1 rounded">
                         <ExclamationTriangleIcon className="w-4 h-4" />
-                        <span className="text-xs">Urgent</span>
+                        <span className="text-xs hidden sm:inline">Urgent</span>
                       </div>
                     )}
                     {matter.status === 'OPEN' && (
                       <div className="flex items-center gap-1 text-green-600 text-sm bg-green-50 px-2 py-1 rounded">
                         <CheckCircleIcon className="w-4 h-4" />
-                        <span className="text-xs">Active</span>
+                        <span className="text-xs hidden sm:inline">Active</span>
                       </div>
                     )}
                   </div>
