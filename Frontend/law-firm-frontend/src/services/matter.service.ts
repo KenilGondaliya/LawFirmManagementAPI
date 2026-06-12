@@ -271,22 +271,22 @@ export const matterService = {
   // ==================== Related Data ====================
   
   getMatterDocuments: async (matterId: number): Promise<MatterDocument[]> => {
-    const response = await api.get(`/matters/${matterId}/documents`);
+    const response = await api.get(`/documents?matterId=${matterId}`);
     return response.data;
   },
   
   getMatterTasks: async (matterId: number): Promise<MatterTask[]> => {
-    const response = await api.get(`/matters/${matterId}/tasks`);
+    const response = await api.get(`/tasks?matterId=${matterId}`);
     return response.data;
   },
   
   getMatterEvents: async (matterId: number): Promise<MatterEvent[]> => {
-    const response = await api.get(`/matters/${matterId}/events`);
+    const response = await api.get(`/events?matterId=${matterId}`);
     return response.data;
   },
   
   getMatterBills: async (matterId: number): Promise<MatterBill[]> => {
-    const response = await api.get(`/matters/${matterId}/bills`);
+    const response = await api.get(`/billing/bills?matterId=${matterId}`);
     return response.data;
   },
   

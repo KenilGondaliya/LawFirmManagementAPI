@@ -21,7 +21,6 @@ import { Dashboard } from "./pages/Dashboard/Dashboard";
 import Profile from "./pages/Settings/Profile";
 import Team from "./pages/Settings/Team";
 import FirmSettings from "./pages/Settings/FirmSettings";
-import BillingSettings from "./pages/Settings/BillingSettings";
 import { ContactsList } from "./pages/Contacts/ContactsList";
 import { ContactDetail } from "./pages/Contacts/ContactDetail";
 import { CreateContact } from "./pages/Contacts/CreateContact";
@@ -47,6 +46,8 @@ import { CreateBill } from "./pages/Billing/CreateBill";
 import { BillsList } from "./pages/Billing/BillsList";
 import { EditContact } from "./pages/Contacts/EditContact";
 import { AcceptInvite } from "./pages/Auth/AcceptInvite";
+import { PricingPlans } from "./pages/Pricing/PricingPlans";
+import { BillingSettings } from "./pages/Settings/BillingSettings";
 
 function App() {
   const { initializeAuth, isLoading } = useAuthStore();
@@ -105,10 +106,11 @@ function App() {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/resend-verification" element={<ResendVerification />} />
         <Route path="/accept-invite" element={<AcceptInvite />} />
-
+        <Route path="/pricing" element={<PricingPlans />} />
 
         {/* Protected Routes */}
         <Route element={<AuthGuard><MainLayout /></AuthGuard>}>
+          <Route path="/pricing" element={<PricingPlans />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/matters" element={<MattersList />} />
           <Route path="/matters/:id" element={<MatterDetail />} />

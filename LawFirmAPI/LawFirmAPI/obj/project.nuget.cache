@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "rvKFXZFx+Z4=",
+  "dgSpecHash": "zyVk6jsOAoY=",
   "success": true,
   "projectFilePath": "E:\\D\\LawFirmManagementAPI\\LawFirmAPI\\LawFirmAPI\\LawFirmAPI.csproj",
   "expectedPackageFiles": [
@@ -42,8 +42,11 @@
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\microsoft.openapi\\1.4.3\\microsoft.openapi.1.4.3.nupkg.sha512",
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\mimekit\\4.15.1\\mimekit.4.15.1.nupkg.sha512",
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\mono.texttemplating\\2.2.1\\mono.texttemplating.2.2.1.nupkg.sha512",
+    "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\newtonsoft.json\\13.0.3\\newtonsoft.json.13.0.3.nupkg.sha512",
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\npgsql\\8.0.0\\npgsql.8.0.0.nupkg.sha512",
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\npgsql.entityframeworkcore.postgresql\\8.0.0\\npgsql.entityframeworkcore.postgresql.8.0.0.nupkg.sha512",
+    "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\portable.bouncycastle\\1.9.0\\portable.bouncycastle.1.9.0.nupkg.sha512",
+    "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\razorpay\\3.3.2\\razorpay.3.3.2.nupkg.sha512",
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\swashbuckle.aspnetcore\\6.5.0\\swashbuckle.aspnetcore.6.5.0.nupkg.sha512",
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\6.5.0\\swashbuckle.aspnetcore.swagger.6.5.0.nupkg.sha512",
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\6.5.0\\swashbuckle.aspnetcore.swaggergen.6.5.0.nupkg.sha512",
@@ -71,5 +74,18 @@
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.23\\microsoft.netcore.app.ref.8.0.23.nupkg.sha512",
     "C:\\Users\\KENIL GONDALIYA\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.23\\microsoft.windowsdesktop.app.ref.8.0.23.nupkg.sha512"
   ],
-  "logs": []
+  "logs": [
+    {
+      "code": "NU1902",
+      "level": "Warning",
+      "message": "Package 'MailKit' 4.15.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-9j88-vvj5-vhgr",
+      "projectPath": "E:\\D\\LawFirmManagementAPI\\LawFirmAPI\\LawFirmAPI\\LawFirmAPI.csproj",
+      "warningLevel": 1,
+      "filePath": "E:\\D\\LawFirmManagementAPI\\LawFirmAPI\\LawFirmAPI\\LawFirmAPI.csproj",
+      "libraryId": "MailKit",
+      "targetGraphs": [
+        "net8.0"
+      ]
+    }
+  ]
 }

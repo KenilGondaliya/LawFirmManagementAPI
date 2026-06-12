@@ -93,6 +93,9 @@ namespace LawFirmAPI.Data
         public DbSet<Payment> Payments { get; set; }
         public DbSet<Invoice> Invoices { get; set; }
         public DbSet<SubscriptionPlan> SubscriptionPlans { get; set; }
+
+        public DbSet<SubscriptionPayment> SubscriptionPayments { get; set; }
+
         public DbSet<FirmSubscription> FirmSubscriptions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -128,12 +131,12 @@ namespace LawFirmAPI.Data
             modelBuilder.Entity<TaskEntity>(entity =>
             {
                 entity.HasKey(t => t.Id);
-                
+
                 entity.HasOne(t => t.Status)
                     .WithMany(s => s.Tasks)
                     .HasForeignKey(t => t.StatusId)
                     .OnDelete(DeleteBehavior.Restrict);
-                
+
                 entity.HasOne(t => t.Priority)
                     .WithMany(p => p.Tasks)
                     .HasForeignKey(t => t.PriorityId)

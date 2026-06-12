@@ -99,7 +99,7 @@ export const MattersList: React.FC = () => {
   }, [selectedMatters]);
 
   const handleBulkDelete = async () => {
-    if (confirm(`Are you sure you want to delete ${selectedMatters.length} matter(s)?`)) {
+    if (window.confirm(`Are you sure you want to delete ${selectedMatters.length} matter(s)?`)) {
       await bulkDeleteMatters(selectedMatters);
       setSelectedMatters([]);
     }

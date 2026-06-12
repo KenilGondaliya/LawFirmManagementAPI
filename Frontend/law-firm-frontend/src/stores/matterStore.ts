@@ -572,14 +572,15 @@ export const useMatterStore = create<MatterState>()(
         }
       },
       
-      fetchMatterTimeline: async (matterId) => {
-        try {
-          const timeline = await matterService.getMatterTimeline(matterId);
-          set({ timeline });
-        } catch (error) {
-          console.error('Failed to fetch matter timeline:', error);
-        }
-      },
+      fetchMatterTimeline: async (matterId: number) => {
+  try {
+    const timeline = await matterService.getMatterTimeline(matterId);
+    set({ timeline });
+  } catch (error) {
+    console.error('Failed to fetch matter timeline:', error);
+  }
+},
+
       
       // ==================== Stats & Search ====================
       

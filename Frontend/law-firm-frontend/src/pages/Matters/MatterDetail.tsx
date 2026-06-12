@@ -1,4 +1,5 @@
-// src/pages/Matters/MatterDetail.tsx
+// src/pages/Matters/MatterDetail.tsx - With Complete Navigation
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -19,6 +20,9 @@ import {
   XMarkIcon,
   ChatBubbleLeftRightIcon,
   BuildingOfficeIcon,
+  EyeIcon,
+  TagIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline';
 import { useMatterStore } from '../../stores/matterStore';
 import { useContactStore } from '../../stores/contactStore';
@@ -93,16 +97,22 @@ export const MatterDetail: React.FC = () => {
       const matterId = parseInt(id);
       fetchMatterById(matterId);
       fetchContacts({});
-      fetchMatterDocuments(matterId);
-      fetchMatterTasks(matterId);
-      fetchMatterEvents(matterId);
-      fetchMatterBills(matterId);
-      fetchMatterTimeline(matterId);
+      refreshRelatedData(matterId);
     }
     return () => {
       clearSelectedMatter();
     };
   }, [id]);
+
+  const refreshRelatedData = async (matterId: number) => {
+    await Promise.all([
+      fetchMatterDocuments(matterId),
+      fetchMatterTasks(matterId),
+      fetchMatterEvents(matterId),
+      fetchMatterBills(matterId),
+      fetchMatterTimeline(matterId),
+    ]);
+  };
 
   const handleDelete = async () => {
     if (id) {
@@ -127,12 +137,14 @@ export const MatterDetail: React.FC = () => {
       await addMatterParty(parseInt(id), newParty);
       setShowAddPartyModal(false);
       setNewParty({ contactId: 0, partyType: 'CLIENT', roleDescription: '', isPrimary: false });
+      await refreshRelatedData(parseInt(id));
     }
   };
 
   const handleRemoveParty = async (partyId: number) => {
     if (id) {
       await removeMatterParty(parseInt(id), partyId);
+      await refreshRelatedData(parseInt(id));
     }
   };
 
@@ -141,11 +153,36 @@ export const MatterDetail: React.FC = () => {
       await addMatterNote(parseInt(id), newNote);
       setShowAddNoteModal(false);
       setNewNote({ note: '', isPrivate: false });
+      await refreshRelatedData(parseInt(id));
     }
   };
 
   const handleRemoveNote = async (noteId: number) => {
     await deleteMatterNote(noteId);
+    if (id) {
+      await refreshRelatedData(parseInt(id));
+    }
+  };
+
+  // Navigation handlers
+  const handleViewContact = (contactId: number) => {
+    navigate(`/contacts/${contactId}`);
+  };
+
+  const handleViewDocument = (documentId: number) => {
+    navigate(`/documents/${documentId}`);
+  };
+
+  const handleViewTask = (taskId: number) => {
+    navigate(`/tasks/${taskId}`);
+  };
+
+  const handleViewEvent = (eventId: number) => {
+    navigate(`/calendar/events/${eventId}`);
+  };
+
+  const handleViewBill = (billId: number) => {
+    navigate(`/billing/bills/${billId}`);
   };
 
   const formatDate = (date: string) => {
@@ -451,7 +488,11 @@ export const MatterDetail: React.FC = () => {
           {selectedMatter.parties && selectedMatter.parties.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {selectedMatter.parties.map((party) => (
-                <div key={party.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                <div 
+                  key={party.id} 
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  onClick={() => handleViewContact(party.contactId)}
+                >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-lg">
                       {partyTypeOptions.find(p => p.value === party.partyType)?.icon || '👤'}
@@ -472,7 +513,10 @@ export const MatterDetail: React.FC = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => handleRemoveParty(party.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveParty(party.id);
+                    }}
                     className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <TrashIcon className="w-4 h-4" />
@@ -547,12 +591,12 @@ export const MatterDetail: React.FC = () => {
         </Card>
       )}
 
-      {/* Content - Documents Tab */}
+      {/* Content - Documents Tab with Navigation */}
       {activeTab === 'documents' && (
         <Card>
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <DocumentTextIcon className="w-5 h-5 text-primary-500" />
-            Documents
+            Documents ({documents.length})
           </h3>
           {documents.length > 0 ? (
             <div className="overflow-x-auto">
@@ -564,16 +608,25 @@ export const MatterDetail: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Uploaded By</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Size</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {documents.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-gray-50 cursor-pointer">
+                    <tr key={doc.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm text-gray-900">{doc.title}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{doc.fileName}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{doc.uploadedByName || '-'}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{formatDate(doc.uploadedAt)}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{(doc.fileSize / 1024).toFixed(2)} KB</td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleViewDocument(doc.id)}
+                          className="text-primary-600 hover:text-primary-800"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -588,17 +641,21 @@ export const MatterDetail: React.FC = () => {
         </Card>
       )}
 
-      {/* Content - Tasks Tab */}
+      {/* Content - Tasks Tab with Navigation */}
       {activeTab === 'tasks' && (
         <Card>
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CheckCircleIcon className="w-5 h-5 text-primary-500" />
-            Tasks
+            Tasks ({tasks.length})
           </h3>
           {tasks.length > 0 ? (
             <div className="space-y-3">
               {tasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div 
+                  key={task.id} 
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => handleViewTask(task.id)}
+                >
                   <div>
                     <p className="font-medium text-gray-900">{task.title}</p>
                     {task.dueDate && (
@@ -607,12 +664,17 @@ export const MatterDetail: React.FC = () => {
                   </div>
                   <div className="flex gap-2">
                     {task.statusName && (
-                      <span className={`px-2 py-1 text-xs rounded-full bg-${task.statusColor || 'gray'}-100 text-${task.statusColor || 'gray'}-800`}>
+                      <span className={`px-2 py-1 text-xs rounded-full bg-green-100 text-green-800`}>
                         {task.statusName}
                       </span>
                     )}
                     {task.priorityName && (
-                      <span className={`px-2 py-1 text-xs rounded-full bg-${task.priorityColor || 'gray'}-100 text-${task.priorityColor || 'gray'}-800`}>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        task.priorityName === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                        task.priorityName === 'URGENT' ? 'bg-red-100 text-red-800' :
+                        task.priorityName === 'LOW' ? 'bg-blue-100 text-blue-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
                         {task.priorityName}
                       </span>
                     )}
@@ -629,17 +691,21 @@ export const MatterDetail: React.FC = () => {
         </Card>
       )}
 
-      {/* Content - Events Tab */}
+      {/* Content - Events Tab with Navigation */}
       {activeTab === 'events' && (
         <Card>
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CalendarIcon className="w-5 h-5 text-primary-500" />
-            Events
+            Events ({events.length})
           </h3>
           {events.length > 0 ? (
             <div className="space-y-3">
               {events.map((event) => (
-                <div key={event.id} className="p-4 bg-gray-50 rounded-lg">
+                <div 
+                  key={event.id} 
+                  className="p-4 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
+                  onClick={() => handleViewEvent(event.id)}
+                >
                   <div className="flex justify-between items-start">
                     <div>
                       <p className="font-medium text-gray-900">{event.title}</p>
@@ -664,12 +730,12 @@ export const MatterDetail: React.FC = () => {
         </Card>
       )}
 
-      {/* Content - Bills Tab */}
+      {/* Content - Bills Tab with Navigation */}
       {activeTab === 'bills' && (
         <Card>
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <CurrencyDollarIcon className="w-5 h-5 text-primary-500" />
-            Bills
+            Bills ({bills.length})
           </h3>
           {bills.length > 0 ? (
             <div className="overflow-x-auto">
@@ -681,19 +747,32 @@ export const MatterDetail: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Balance Due</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Due Date</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {bills.map((bill) => (
-                    <tr key={bill.id} className="hover:bg-gray-50 cursor-pointer">
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{bill.billNumber}</td>
+                    <tr key={bill.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-mono text-gray-900">{bill.billNumber}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">${bill.totalAmount.toLocaleString()}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">${bill.balanceDue.toLocaleString()}</td>
                       <td className="px-6 py-4 text-sm text-gray-500">{formatDate(bill.dueDate)}</td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 text-xs rounded-full bg-${bill.statusColor || 'gray'}-100 text-${bill.statusColor || 'gray'}-800`}>
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          bill.statusName === 'Paid' ? 'bg-green-100 text-green-800' :
+                          bill.statusName === 'Overdue' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
                           {bill.statusName}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleViewBill(bill.id)}
+                          className="text-primary-600 hover:text-primary-800"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -714,39 +793,46 @@ export const MatterDetail: React.FC = () => {
         <Card>
           <h3 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
             <ClockIcon className="w-5 h-5 text-primary-500" />
-            Activity Timeline
+            Activity Timeline ({timeline.length})
           </h3>
-          <div className="relative">
-            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-            <div className="space-y-6">
-              {/* Open Matter Activity */}
-              <div className="relative pl-10">
-                <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Matter Opened</p>
-                  <p className="text-sm text-gray-500">{formatDate(selectedMatter.openDate)}</p>
-                </div>
-              </div>
-
-              {/* Timeline Activities */}
-              {timeline.map((activity) => (
-                <div key={activity.id} className="relative pl-10">
-                  <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <ClockIcon className="w-4 h-4 text-blue-600" />
+          {timeline.length > 0 ? (
+            <div className="relative">
+              <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+              <div className="space-y-6">
+                {/* Open Matter Activity */}
+                <div className="relative pl-10">
+                  <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <CheckCircleIcon className="w-4 h-4 text-green-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{activity.activityType}</p>
-                    <p className="text-sm text-gray-500">{activity.description}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {activity.userName ? `by ${activity.userName} • ` : ''}{formatDateTime(activity.createdAt)}
-                    </p>
+                    <p className="font-medium text-gray-900">Matter Opened</p>
+                    <p className="text-sm text-gray-500">{formatDate(selectedMatter.openDate)}</p>
                   </div>
                 </div>
-              ))}
+
+                {/* Timeline Activities */}
+                {timeline.map((activity) => (
+                  <div key={activity.id} className="relative pl-10">
+                    <div className="absolute left-0 top-1 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <ClockIcon className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{activity.activityType}</p>
+                      <p className="text-sm text-gray-500">{activity.description}</p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {activity.userName ? `by ${activity.userName} • ` : ''}{formatDateTime(activity.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="text-center py-12">
+              <ClockIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No activity recorded yet</p>
+            </div>
+          )}
         </Card>
       )}
 

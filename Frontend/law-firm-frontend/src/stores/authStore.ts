@@ -1,10 +1,20 @@
 // src/stores/authStore.ts - COMPLETE FIXED VERSION
 
-import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
-import { User, Firm, AuthResponse, RegisterDto, CreateFirmDto, UpdateProfileDto, ChangePasswordDto, InviteUserDto, InviteResponse } from '../types';
-import { authService } from '../services/auth.service';
-import api from '../services/api';
+import { create } from "zustand";
+import { devtools, persist } from "zustand/middleware";
+import {
+  User,
+  Firm,
+  AuthResponse,
+  RegisterDto,
+  CreateFirmDto,
+  UpdateProfileDto,
+  ChangePasswordDto,
+  InviteUserDto,
+  InviteResponse,
+} from "../types";
+import { authService } from "../services/auth.service";
+import api from "../services/api";
 
 interface AuthState {
   user: User | null;
@@ -15,30 +25,38 @@ interface AuthState {
   requiresFirmCreation: boolean;
   requiresFirmSelection: boolean;
   authError: string | null;
-  
+
   // Auth actions
-  login: (emailOrUsername: string, password: string, firmId?: number) => Promise<void>;
+  login: (
+    emailOrUsername: string,
+    password: string,
+    firmId?: number,
+  ) => Promise<void>;
   register: (data: RegisterDto) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
-  
+
   // Firm actions
   createFirm: (data: CreateFirmDto) => Promise<void>;
   switchFirm: (firmId: number) => Promise<void>;
   setCurrentFirm: (firm: Firm) => void;
-  
+
   // Profile actions
   updateProfile: (data: UpdateProfileDto) => Promise<void>;
   changePassword: (data: ChangePasswordDto) => Promise<void>;
-  
+
   // Email verification
   resendVerification: (email: string) => Promise<void>;
   verifyEmail: (token: string) => Promise<void>;
-  
+
   // Team actions
   inviteUser: (data: InviteUserDto) => Promise<InviteResponse>;
-  acceptInvite: (email: string, firstName?: string, lastName?: string) => Promise<void>;
-  
+  acceptInvite: (
+    email: string,
+    firstName?: string,
+    lastName?: string,
+  ) => Promise<void>;
+
   // Utility
   clearAuth: () => void;
   initializeAuth: () => Promise<void>;
@@ -57,91 +75,120 @@ export const useAuthStore = create<AuthState>()(
         requiresFirmCreation: false,
         requiresFirmSelection: false,
         authError: null,
-        
+
         login: async (emailOrUsername, password, firmId) => {
           set({ isLoading: true, authError: null });
           try {
-            const response = await authService.login(emailOrUsername, password, firmId);
+            const response = await authService.login(
+              emailOrUsername,
+              password,
+              firmId,
+            );
             get().setAuthFromResponse(response);
           } catch (error: any) {
-            set({ 
-              isLoading: false, 
-              authError: error.response?.data?.message || 'Login failed' 
+            set({
+              isLoading: false,
+              authError: error.response?.data?.message || "Login failed",
             });
             throw error;
           }
         },
-        
+
         register: async (data) => {
           set({ isLoading: true, authError: null });
           try {
             const response = await authService.register(data);
             get().setAuthFromResponse(response);
           } catch (error: any) {
-            set({ 
-              isLoading: false, 
-              authError: error.response?.data?.message || 'Registration failed' 
+            set({
+              isLoading: false,
+              authError: error.response?.data?.message || "Registration failed",
             });
             throw error;
           }
         },
-        
+
         createFirm: async (data) => {
           set({ isLoading: true, authError: null });
           try {
             const response = await authService.createFirm(data);
             get().setAuthFromResponse(response);
           } catch (error: any) {
-            set({ 
-              isLoading: false, 
-              authError: error.response?.data?.message || 'Failed to create firm' 
+            set({
+              isLoading: false,
+              authError:
+                error.response?.data?.message || "Failed to create firm",
             });
             throw error;
           }
         },
-        
+
         switchFirm: async (firmId) => {
           set({ isLoading: true, authError: null });
           try {
             const response = await authService.switchFirm(firmId);
             get().setAuthFromResponse(response);
           } catch (error: any) {
-            set({ 
-              isLoading: false, 
-              authError: error.response?.data?.message || 'Failed to switch firm' 
+            set({
+              isLoading: false,
+              authError:
+                error.response?.data?.message || "Failed to switch firm",
             });
             throw error;
           }
         },
-        
+
         // ✅ FIXED: Accept invitation and update tokens
         acceptInvite: async (email, firstName, lastName) => {
           set({ isLoading: true, authError: null });
           try {
-            const response = await authService.acceptInvite(email, firstName, lastName);
-            
+            const response = await authService.acceptInvite(
+              email,
+              firstName,
+              lastName,
+            );
+
             // ✅ CRITICAL: Update tokens in localStorage and axios headers
             get().setAuthFromResponse(response);
-            
+
             set({ isLoading: false });
           } catch (error: any) {
-            set({ 
-              isLoading: false, 
-              authError: error.response?.data?.message || 'Failed to accept invitation' 
+            set({
+              isLoading: false,
+              authError:
+                error.response?.data?.message || "Failed to accept invitation",
             });
             throw error;
           }
         },
-        
+
         // ✅ NEW: Helper method to set auth from response
+        // src/stores/authStore.ts - Update setAuthFromResponse to store user info
+
         setAuthFromResponse: (response: AuthResponse) => {
           // Store tokens
           if (response.accessToken) {
-            localStorage.setItem('accessToken', response.accessToken);
-            localStorage.setItem('refreshToken', response.refreshToken);
-            api.defaults.headers.common['Authorization'] = `Bearer ${response.accessToken}`;
+            localStorage.setItem("accessToken", response.accessToken);
+            localStorage.setItem("refreshToken", response.refreshToken);
+            api.defaults.headers.common["Authorization"] =
+              `Bearer ${response.accessToken}`;
           }
-          
+
+          // ✅ Store user info for payment prefill
+          if (response.user) {
+            localStorage.setItem(
+              "userName",
+              response.user.fullName || response.user.username,
+            );
+            localStorage.setItem("userEmail", response.user.email);
+            if (response.currentFirm) {
+              localStorage.setItem(
+                "firmId",
+                response.currentFirm.id.toString(),
+              );
+            }
+          }
+
           set({
             user: response.user,
             firms: response.firms,
@@ -153,19 +200,19 @@ export const useAuthStore = create<AuthState>()(
             authError: null,
           });
         },
-        
+
         logout: async () => {
-          const refreshToken = localStorage.getItem('refreshToken');
+          const refreshToken = localStorage.getItem("refreshToken");
           if (refreshToken) {
             await authService.logout(refreshToken).catch(console.error);
           }
           get().clearAuth();
         },
-        
+
         setCurrentFirm: (firm) => {
           set({ currentFirm: firm });
         },
-        
+
         updateProfile: async (data) => {
           set({ isLoading: true });
           try {
@@ -177,7 +224,7 @@ export const useAuthStore = create<AuthState>()(
             throw error;
           }
         },
-        
+
         changePassword: async (data) => {
           set({ isLoading: true });
           try {
@@ -188,25 +235,25 @@ export const useAuthStore = create<AuthState>()(
             throw error;
           }
         },
-        
+
         resendVerification: async (email) => {
           await authService.resendVerification(email);
         },
-        
+
         verifyEmail: async (token) => {
           await authService.verifyEmail(token);
           const profile = await authService.getProfile();
           set({ user: profile });
         },
-        
+
         inviteUser: async (data) => {
           return await authService.inviteUser(data);
         },
-        
+
         clearAuth: () => {
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          delete api.defaults.headers.common['Authorization'];
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("refreshToken");
+          delete api.defaults.headers.common["Authorization"];
           set({
             user: null,
             firms: [],
@@ -218,57 +265,58 @@ export const useAuthStore = create<AuthState>()(
             authError: null,
           });
         },
-        
+
         refreshToken: async () => {
-          const refreshToken = localStorage.getItem('refreshToken');
+          const refreshToken = localStorage.getItem("refreshToken");
           if (!refreshToken) return false;
-          
+
           try {
             const response = await authService.refreshToken(refreshToken);
             get().setAuthFromResponse(response);
             return true;
           } catch (error) {
-            console.error('Token refresh failed:', error);
+            console.error("Token refresh failed:", error);
             get().clearAuth();
             return false;
           }
         },
-        
+
         initializeAuth: async () => {
           if (get().isAuthenticated) {
             return;
           }
-          
+
           set({ isLoading: true, authError: null });
-          
-          const accessToken = localStorage.getItem('accessToken');
-          
+
+          const accessToken = localStorage.getItem("accessToken");
+
           if (!accessToken) {
             get().clearAuth();
             set({ isLoading: false });
             return;
           }
-          
-          api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
-          
+
+          api.defaults.headers.common["Authorization"] =
+            `Bearer ${accessToken}`;
+
           try {
             const profile = await authService.getProfile();
-            
+
             // Restore stored firms from localStorage
-            const storedState = localStorage.getItem('auth-storage');
+            const storedState = localStorage.getItem("auth-storage");
             let firms: Firm[] = [];
             let currentFirm: Firm | null = null;
-            
+
             if (storedState) {
               try {
                 const parsed = JSON.parse(storedState);
                 firms = parsed.state?.firms || [];
                 currentFirm = parsed.state?.currentFirm || null;
               } catch (e) {
-                console.error('Failed to parse stored state:', e);
+                console.error("Failed to parse stored state:", e);
               }
             }
-            
+
             set({
               user: profile,
               firms: firms,
@@ -286,20 +334,23 @@ export const useAuthStore = create<AuthState>()(
                 return;
               }
             }
-            
+
             get().clearAuth();
-            set({ isLoading: false, authError: 'Session expired. Please login again.' });
+            set({
+              isLoading: false,
+              authError: "Session expired. Please login again.",
+            });
           }
         },
       }),
       {
-        name: 'auth-storage',
+        name: "auth-storage",
         partialize: (state) => ({
           user: state.user,
           firms: state.firms,
           currentFirm: state.currentFirm,
         }),
-      }
-    )
-  )
+      },
+    ),
+  ),
 );

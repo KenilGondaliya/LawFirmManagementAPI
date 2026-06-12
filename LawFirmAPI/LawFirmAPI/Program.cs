@@ -7,6 +7,7 @@ using LawFirmAPI.Data;
 using LawFirmAPI.Services;
 using LawFirmAPI.Helpers;
 using LawFirmAPI.Middlewares;
+using LawFirmAPI.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -108,6 +109,7 @@ builder.Services.AddScoped<IBillingService, BillingService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 
 builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<RazorpayOptions>(builder.Configuration.GetSection("Razorpay"));
 
 // CORS
 builder.Services.AddCors(options =>
@@ -132,13 +134,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// ✅ CORS - Must be before authentication
 app.UseCors("AllowReactApp");
 
-// ✅ Authentication
 app.UseAuthentication();
 
-// ✅ Custom Tenant/Firm Context Middleware - WITH PUBLIC PATH HANDLING
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.ToString().ToLower();
@@ -159,17 +158,14 @@ app.Use(async (context, next) =>
         "/swagger/index.html"
     };
     
-    // Check if current path is public
     var isPublicPath = publicPaths.Any(p => path.StartsWith(p));
     
     if (isPublicPath)
     {
-        // ✅ Skip tenant/firm context check entirely for public endpoints
         await next();
         return;
     }
     
-    // ✅ For protected endpoints, check if user is authenticated
     if (!context.User.Identity?.IsAuthenticated ?? true)
     {
         context.Response.StatusCode = 401;
@@ -177,11 +173,8 @@ app.Use(async (context, next) =>
         return;
     }
     
-    // ✅ User is authenticated, now apply tenant middleware logic
-    // Get firm ID from JWT claim
     var firmId = context.User.FindFirst("firmId")?.Value;
     
-    // Endpoints that might not need firm context (like logout)
     var endpointsWithoutFirm = new[] { "/api/v1/auth/logout" };
     var isEndpointWithoutFirm = endpointsWithoutFirm.Any(p => path.Contains(p));
     
@@ -195,7 +188,6 @@ app.Use(async (context, next) =>
         return;
     }
     
-    // Store firm context for downstream services
     if (!string.IsNullOrEmpty(firmId))
     {
         context.Items["FirmId"] = long.Parse(firmId);
@@ -204,13 +196,10 @@ app.Use(async (context, next) =>
     await next();
 });
 
-// ✅ Authorization - Must come after Authentication
 app.UseAuthorization();
 
-// ✅ Map controllers
 app.MapControllers();
 
-// Ensure database is created with error handling
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();

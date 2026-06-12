@@ -300,12 +300,14 @@ namespace LawFirmAPI.Services
             if (user == null)
                 return null;
 
+            // Get the plan
             var plan = await _context.SubscriptionPlans
                 .FirstOrDefaultAsync(p => p.Code == createFirmDto.PlanCode && p.IsActive);
 
             if (plan == null)
                 plan = await _context.SubscriptionPlans.FirstOrDefaultAsync(p => p.Code == "basic");
 
+            // Create the firm
             var firm = new Firm
             {
                 Name = createFirmDto.FirmName,
@@ -332,12 +334,14 @@ namespace LawFirmAPI.Services
             _context.Firms.Add(firm);
             await _context.SaveChangesAsync();
 
+            // Add firm settings
             var firmSetting = new FirmSetting
             {
                 FirmId = firm.Id
             };
             _context.FirmSettings.Add(firmSetting);
 
+            // Add user as owner
             var userFirm = new UserFirm
             {
                 UserId = userId,
@@ -349,6 +353,7 @@ namespace LawFirmAPI.Services
             };
             _context.UserFirms.Add(userFirm);
 
+            // Create subscription record
             var isYearly = createFirmDto.BillingCycle?.ToLower() == "yearly";
             var startDate = DateTime.UtcNow;
             var nextBillingDate = isYearly ? startDate.AddYears(1) : startDate.AddMonths(1);
@@ -367,9 +372,18 @@ namespace LawFirmAPI.Services
 
             await _context.SaveChangesAsync();
 
-            if (createFirmDto.PlanCode != "basic")
+            // For paid plans, create payment record (but don't await - let it run in background)
+            if (createFirmDto.PlanCode != "basic" && plan != null)
             {
-                await _paymentService.CreateSubscription(firm, plan, isYearly);
+                try
+                {
+                    await _paymentService.CreateSubscription(firm, plan, isYearly);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to create subscription payment record: {ex.Message}");
+                    // Don't throw - the firm is already created
+                }
             }
 
             return await GenerateAuthResponse(user, firm, ipAddress);

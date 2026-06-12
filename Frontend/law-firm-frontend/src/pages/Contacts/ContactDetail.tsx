@@ -1,4 +1,4 @@
-// src/pages/Contacts/ContactDetail.tsx - Complete Fixed Version with Proper Tag Selection
+// src/pages/Contacts/ContactDetail.tsx - COMPLETE FIXED VERSION
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -31,7 +31,11 @@ import {
   LinkIcon,
   Loader2,
   AlertCircleIcon,
-  ChevronDownIcon
+  ClockIcon,
+  FolderIcon,
+  CalendarDaysIcon,
+  DollarSignIcon,
+  ExternalLinkIcon,
 } from 'lucide-react';
 import { useContactStore } from '../../stores/contactStore';
 import { Button } from '../../components/UI/Button';
@@ -39,6 +43,35 @@ import { Card } from '../../components/UI/Card';
 import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
 import { Modal } from '../../components/UI/Modal';
 import toast from 'react-hot-toast';
+import { contactService } from '../../services/contact.service';
+import { matterService } from '../../services/matter.service';
+import { taskService } from '../../services/task.service';
+import { documentService } from '../../services/document.service';
+
+// Interfaces for related data
+interface MatterBrief {
+  id: number;
+  matterNumber: string;
+  title: string;
+  status: string;
+  partyType: string;
+  isPrimary: boolean;
+}
+
+interface TaskBrief {
+  id: number;
+  title: string;
+  dueDate: string | null;
+  status: string;
+  priority: string;
+}
+
+interface DocumentBrief {
+  id: number;
+  title: string;
+  fileName: string;
+  uploadedAt: string;
+}
 
 export const ContactDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +92,12 @@ export const ContactDetail: React.FC = () => {
     createTag
   } = useContactStore();
   
+  // State for related data
+  const [matters, setMatters] = useState<MatterBrief[]>([]);
+  const [tasks, setTasks] = useState<TaskBrief[]>([]);
+  const [documents, setDocuments] = useState<DocumentBrief[]>([]);
+  const [isLoadingRelated, setIsLoadingRelated] = useState(false);
+  
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDeleteItemModal, setShowDeleteItemModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'matters' | 'tasks' | 'documents'>('details');
@@ -76,13 +115,36 @@ export const ContactDetail: React.FC = () => {
 
   useEffect(() => {
     if (id) {
-      fetchContactById(parseInt(id));
+      const contactId = parseInt(id);
+      fetchContactById(contactId);
       fetchTags();
+      fetchRelatedData(contactId);
     }
     return () => {
       clearSelectedContact();
     };
   }, [id, fetchContactById, fetchTags, clearSelectedContact]);
+
+  const fetchRelatedData = async (contactId: number) => {
+    setIsLoadingRelated(true);
+    try {
+      // Fetch matters for this contact
+      const mattersData = await contactService.getContactMatters(contactId);
+      setMatters(mattersData);
+      
+      // Fetch tasks for this contact
+      const tasksData = await contactService.getContactTasks(contactId);
+      setTasks(tasksData);
+      
+      // Fetch documents for this contact
+      const documentsData = await contactService.getContactDocuments(contactId);
+      setDocuments(documentsData);
+    } catch (error) {
+      console.error('Failed to fetch related data:', error);
+    } finally {
+      setIsLoadingRelated(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (id) {
@@ -99,7 +161,6 @@ export const ContactDetail: React.FC = () => {
       setAddingTag(true);
       try {
         await addTagToContact(selectedContact.id, selectedTagId);
-        // Refresh the contact to get updated tags
         await fetchContactById(selectedContact.id);
         setShowTagModal(false);
         setSelectedTagId(null);
@@ -117,7 +178,6 @@ export const ContactDetail: React.FC = () => {
     if (selectedContact) {
       try {
         await removeTagFromContact(selectedContact.id, tagId);
-        // Refresh the contact to get updated tags
         await fetchContactById(selectedContact.id);
         toast.success('Tag removed successfully');
       } catch (error: any) {
@@ -140,7 +200,6 @@ export const ContactDetail: React.FC = () => {
         setNewTagName('');
         setNewTagColor('#4F46E5');
         setShowCreateTagModal(false);
-        // Refresh tags list
         await fetchTags();
         toast.success('Tag created successfully');
       }
@@ -195,6 +254,26 @@ export const ContactDetail: React.FC = () => {
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'OPEN': return 'bg-green-100 text-green-800';
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+      case 'CLOSED': return 'bg-gray-100 text-gray-800';
+      case 'ARCHIVED': return 'bg-blue-100 text-blue-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority?.toUpperCase()) {
+      case 'LOW': return 'bg-blue-100 text-blue-800';
+      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800';
+      case 'HIGH': return 'bg-orange-100 text-orange-800';
+      case 'URGENT': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -237,9 +316,158 @@ export const ContactDetail: React.FC = () => {
   // Get available tags (tags not already added to contact)
   const availableTags = tags.filter(tag => !selectedContact.tags?.some(t => t.id === tag.id));
 
+  // Render Matters Tab Content
+  const renderMattersTab = () => (
+    <Card>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <BriefcaseIcon className="w-5 h-5 text-primary-500" />
+        Matters ({matters.length})
+      </h3>
+      {isLoadingRelated ? (
+        <div className="flex justify-center py-8">
+          <LoadingSpinner />
+        </div>
+      ) : matters.length > 0 ? (
+        <div className="space-y-3">
+          {matters.map((matter) => (
+            <div
+              key={matter.id}
+              className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+              onClick={() => navigate(`/matters/${matter.id}`)}
+            >
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-mono text-gray-500">{matter.matterNumber}</span>
+                    <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusColor(matter.status)}`}>
+                      {matter.status}
+                    </span>
+                    {matter.isPrimary && (
+                      <span className="px-2 py-0.5 text-xs bg-primary-100 text-primary-700 rounded-full">
+                        Primary
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-medium text-gray-900">{matter.title}</p>
+                  <p className="text-sm text-gray-500 mt-1">Role: {matter.partyType}</p>
+                </div>
+                <ExternalLinkIcon className="w-4 h-4 text-gray-400" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <BriefcaseIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">No matters associated with this contact</p>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/matters/create')}>
+            Create Matter
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+
+  // Render Tasks Tab Content
+  const renderTasksTab = () => (
+    <Card>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <CheckCircleIcon className="w-5 h-5 text-primary-500" />
+        Tasks ({tasks.length})
+      </h3>
+      {isLoadingRelated ? (
+        <div className="flex justify-center py-8">
+          <LoadingSpinner />
+        </div>
+      ) : tasks.length > 0 ? (
+        <div className="space-y-3">
+          {tasks.map((task) => (
+            <div
+              key={task.id}
+              className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+              onClick={() => navigate(`/tasks/${task.id}`)}
+            >
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2 py-0.5 text-xs rounded-full ${getPriorityColor(task.priority)}`}>
+                      {task.priority}
+                    </span>
+                    <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusColor(task.status)}`}>
+                      {task.status || 'Pending'}
+                    </span>
+                  </div>
+                  <p className="font-medium text-gray-900">{task.title}</p>
+                  {task.dueDate && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <ClockIcon className="w-3 h-3 text-gray-400" />
+                      <span className="text-xs text-gray-500">Due: {formatDate(task.dueDate)}</span>
+                    </div>
+                  )}
+                </div>
+                <ExternalLinkIcon className="w-4 h-4 text-gray-400" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <CheckCircleIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">No tasks assigned to this contact</p>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/tasks/create')}>
+            Create Task
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+
+  // Render Documents Tab Content
+  const renderDocumentsTab = () => (
+    <Card>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <FileText className="w-5 h-5 text-primary-500" />
+        Documents ({documents.length})
+      </h3>
+      {isLoadingRelated ? (
+        <div className="flex justify-center py-8">
+          <LoadingSpinner />
+        </div>
+      ) : documents.length > 0 ? (
+        <div className="space-y-3">
+          {documents.map((doc) => (
+            <div
+              key={doc.id}
+              className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+              onClick={() => navigate(`/documents/${doc.id}`)}
+            >
+              <div className="flex items-center gap-3">
+                <FileText className="w-5 h-5 text-gray-400" />
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{doc.title}</p>
+                  <p className="text-sm text-gray-500">{doc.fileName}</p>
+                  <p className="text-xs text-gray-400 mt-1">Uploaded: {formatDate(doc.uploadedAt)}</p>
+                </div>
+                <ExternalLinkIcon className="w-4 h-4 text-gray-400" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">No documents for this contact</p>
+          <Button variant="outline" className="mt-4" onClick={() => navigate('/documents/upload')}>
+            Upload Document
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header - same as before */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
@@ -249,7 +477,6 @@ export const ContactDetail: React.FC = () => {
             <ArrowLeftIcon className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-4">
-            {/* Large Avatar */}
             <div className="relative">
               <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
                 {selectedContact.profileImageUrl ? (
@@ -333,7 +560,7 @@ export const ContactDetail: React.FC = () => {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Matters
+            Matters ({matters.length})
           </button>
           <button
             onClick={() => setActiveTab('tasks')}
@@ -343,7 +570,7 @@ export const ContactDetail: React.FC = () => {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Tasks
+            Tasks ({tasks.length})
           </button>
           <button
             onClick={() => setActiveTab('documents')}
@@ -353,7 +580,7 @@ export const ContactDetail: React.FC = () => {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            Documents
+            Documents ({documents.length})
           </button>
         </nav>
       </div>
@@ -361,7 +588,7 @@ export const ContactDetail: React.FC = () => {
       {/* Content */}
       {activeTab === 'details' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Info Column */}
+          {/* Main Info Column - same as before */}
           <div className="lg:col-span-2 space-y-6">
             {/* Contact Information */}
             <Card>
@@ -527,9 +754,9 @@ export const ContactDetail: React.FC = () => {
             )}
           </div>
 
-          {/* Sidebar Column */}
+          {/* Sidebar Column - same as before */}
           <div className="space-y-6">
-            {/* Tags Section - Fixed with proper tag selection */}
+            {/* Tags Section */}
             <Card>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -560,7 +787,6 @@ export const ContactDetail: React.FC = () => {
                 </div>
               </div>
               
-              {/* Display Current Tags */}
               {selectedContact.tags && selectedContact.tags.length > 0 ? (
                 <div className="flex flex-wrap gap-2 mb-3">
                   {selectedContact.tags.map((tag: any) => (
@@ -586,7 +812,6 @@ export const ContactDetail: React.FC = () => {
                 <p className="text-gray-500 text-sm text-center py-4">No tags added</p>
               )}
               
-              {/* Available Tags Summary */}
               {availableTags.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <p className="text-xs text-gray-400 mb-2">Available tags to add:</p>
@@ -691,77 +916,20 @@ export const ContactDetail: React.FC = () => {
                 </div>
               </Card>
             )}
-
-            {/* Relationships */}
-            {(selectedContact.spouse || (selectedContact.relatives && selectedContact.relatives.length > 0)) && (
-              <Card>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <LinkIcon className="w-5 h-5 text-primary-500" />
-                  Relationships
-                </h3>
-                <div className="space-y-3">
-                  {selectedContact.spouse && (
-                    <div className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                      <UserPlusIcon className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-500">Spouse</p>
-                        <p className="text-gray-900 font-medium">{selectedContact.spouse.relatedContactName}</p>
-                      </div>
-                    </div>
-                  )}
-                  {selectedContact.relatives && selectedContact.relatives.map((relative: any) => (
-                    <div key={relative.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                      <UserPlusIcon className="w-5 h-5 text-gray-400" />
-                      <div>
-                        <p className="text-sm text-gray-500 capitalize">{relative.relationshipType}</p>
-                        <p className="text-gray-900 font-medium">{relative.relatedContactName}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
           </div>
         </div>
       )}
 
-      {activeTab === 'matters' && (
-        <Card>
-          <div className="text-center py-12">
-            <BriefcaseIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No matters associated with this contact</p>
-            <Button variant="outline" className="mt-4">
-              Associate Matter
-            </Button>
-          </div>
-        </Card>
-      )}
+      {/* Matters Tab */}
+      {activeTab === 'matters' && renderMattersTab()}
 
-      {activeTab === 'tasks' && (
-        <Card>
-          <div className="text-center py-12">
-            <CheckCircleIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No tasks assigned to this contact</p>
-            <Button variant="outline" className="mt-4">
-              Create Task
-            </Button>
-          </div>
-        </Card>
-      )}
+      {/* Tasks Tab */}
+      {activeTab === 'tasks' && renderTasksTab()}
 
-      {activeTab === 'documents' && (
-        <Card>
-          <div className="text-center py-12">
-            <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No documents for this contact</p>
-            <Button variant="outline" className="mt-4">
-              Upload Document
-            </Button>
-          </div>
-        </Card>
-      )}
+      {/* Documents Tab */}
+      {activeTab === 'documents' && renderDocumentsTab()}
 
-      {/* Add Existing Tag Modal - Shows all available tags */}
+      {/* Modals - same as before */}
       <Modal
         isOpen={showTagModal}
         onClose={() => {
@@ -829,7 +997,6 @@ export const ContactDetail: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Create New Tag Modal */}
       <Modal
         isOpen={showCreateTagModal}
         onClose={() => {
@@ -881,7 +1048,6 @@ export const ContactDetail: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Delete Item Modal */}
       <Modal
         isOpen={showDeleteItemModal}
         onClose={() => setShowDeleteItemModal(false)}
@@ -914,7 +1080,6 @@ export const ContactDetail: React.FC = () => {
         </div>
       </Modal>
 
-      {/* Delete Contact Modal */}
       <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
@@ -937,4 +1102,4 @@ export const ContactDetail: React.FC = () => {
       </Modal>
     </div>
   );
-}; 
+};
