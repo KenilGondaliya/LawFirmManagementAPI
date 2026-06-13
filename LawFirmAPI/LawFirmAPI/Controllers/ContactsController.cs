@@ -23,6 +23,7 @@ namespace LawFirmAPI.Controllers
 
         // Basic Contact Operations
         [HttpGet]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetAllContacts([FromQuery] string? search, [FromQuery] bool? isClient)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -31,6 +32,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpGet("{id}")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetContactById(long id)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -41,6 +43,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpPost]
+            
         public async Task<IActionResult> CreateContact([FromBody] CreateContactDto createDto)
         {
             if (!ModelState.IsValid)
@@ -53,6 +56,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "can_edit_contacts")]
         public async Task<IActionResult> UpdateContact(long id, [FromBody] UpdateContactDto updateDto)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -61,6 +65,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Policy = "can_delete_contacts")]
         public async Task<IActionResult> DeleteContact(long id)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -71,6 +76,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpGet("search")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> SearchContacts([FromQuery] string q)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -80,6 +86,7 @@ namespace LawFirmAPI.Controllers
 
         // Contact Addresses
         [HttpGet("{id}/addresses")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetContactAddresses(long id)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -88,6 +95,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpPost("{id}/addresses")]
+        [Authorize(Policy = "can_edit_contacts")]
         public async Task<IActionResult> AddContactAddress(long id, [FromBody] CreateContactAddressDto addressDto)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -96,6 +104,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpDelete("addresses/{addressId}")]
+        [Authorize(Policy = "can_delete_contacts")]
         public async Task<IActionResult> DeleteContactAddress(long addressId)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -107,6 +116,7 @@ namespace LawFirmAPI.Controllers
 
         // Contact Phones
         [HttpGet("{id}/phones")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetContactPhones(long id)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -115,6 +125,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpPost("{id}/phones")]
+        [Authorize(Policy = "can_edit_contacts")]
         public async Task<IActionResult> AddContactPhone(long id, [FromBody] CreateContactPhoneDto phoneDto)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -123,6 +134,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpDelete("phones/{phoneId}")]
+        [Authorize(Policy = "can_delete_contacts")]
         public async Task<IActionResult> DeleteContactPhone(long phoneId)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -134,6 +146,7 @@ namespace LawFirmAPI.Controllers
 
         // Contact Emails
         [HttpGet("{id}/emails")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetContactEmails(long id)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -142,6 +155,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpPost("{id}/emails")]
+        [Authorize(Policy = "can_edit_contacts")]
         public async Task<IActionResult> AddContactEmail(long id, [FromBody] CreateContactEmailDto emailDto)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -150,6 +164,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpDelete("emails/{emailId}")]
+        [Authorize(Policy = "can_delete_contacts")]
         public async Task<IActionResult> DeleteContactEmail(long emailId)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -161,6 +176,7 @@ namespace LawFirmAPI.Controllers
 
         // Family/Relations
         [HttpPost("{id}/spouse/{spouseId}")]
+        [Authorize(Policy = "can_edit_contacts")]
         public async Task<IActionResult> AddSpouse(long id, long spouseId)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -169,6 +185,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpPost("{id}/relatives")]
+        [Authorize(Policy = "can_edit_contacts")]
         public async Task<IActionResult> AddRelative(long id, [FromBody] AddRelativeDto relativeDto)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -177,6 +194,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpDelete("relationships/{relationshipId}")]
+        [Authorize(Policy = "can_delete_contacts")]
         public async Task<IActionResult> RemoveRelationship(long relationshipId)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -188,6 +206,7 @@ namespace LawFirmAPI.Controllers
 
         // Tags
         [HttpGet("tags")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetTags()
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -196,6 +215,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpPost("tags")]
+        [Authorize(Policy = "can_edit_contacts")]
         public async Task<IActionResult> CreateTag([FromBody] CreateTagDto createDto)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -204,6 +224,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpPost("{id}/tags/{tagId}")]
+        [Authorize(Policy = "can_edit_contacts")]   
         public async Task<IActionResult> AddTagToContact(long id, long tagId)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -212,6 +233,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpDelete("{id}/tags/{tagId}")]
+        [Authorize(Policy = "can_delete_contacts")]
         public async Task<IActionResult> RemoveTagFromContact(long id, long tagId)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -220,6 +242,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpGet("by-tag/{tagId}")]
+        [Authorize(Policy = "can_view_contacts")]   
         public async Task<IActionResult> GetContactsByTag(long tagId)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -229,6 +252,7 @@ namespace LawFirmAPI.Controllers
 
         // Contact Dashboard
         [HttpGet("{id}/matters")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetContactMatters(long id)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -237,6 +261,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpGet("{id}/tasks")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetContactTasks(long id)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -245,6 +270,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpGet("{id}/documents")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetContactDocuments(long id)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
@@ -254,6 +280,7 @@ namespace LawFirmAPI.Controllers
 
         // Statistics
         [HttpGet("stats")]
+        [Authorize(Policy = "can_view_contacts")]
         public async Task<IActionResult> GetContactStats()
         {
             var firmId = await _firmContextService.GetCurrentFirmId();

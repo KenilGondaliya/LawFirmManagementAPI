@@ -1,10 +1,10 @@
 // Controllers/SettingsController.cs
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using LawFirmAPI.Services;
 using LawFirmAPI.Models.DTOs;
-using UpdateFirmSettingsDto = LawFirmAPI.Models.DTOs.UpdateFirmSettingsDto;
 
 namespace LawFirmAPI.Controllers
 {
@@ -15,14 +15,20 @@ namespace LawFirmAPI.Controllers
     {
         private readonly ISettingsService _settingsService;
         private readonly IFirmContextService _firmContextService;
+        private readonly IFeatureAccessService _featureAccessService;
 
-        public SettingsController(ISettingsService settingsService, IFirmContextService firmContextService)
+        public SettingsController(
+            ISettingsService settingsService, 
+            IFirmContextService firmContextService,
+            IFeatureAccessService featureAccessService)
         {
             _settingsService = settingsService;
             _firmContextService = firmContextService;
+            _featureAccessService = featureAccessService;
         }
 
-        // Profile Settings
+        // ==================== Profile Settings ====================
+        
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
         {
@@ -64,7 +70,8 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Avatar removed successfully" });
         }
 
-        // Team Management
+        // ==================== Team Management ====================
+        
         [HttpGet("teams")]
         public async Task<IActionResult> GetTeamMembers()
         {
@@ -118,7 +125,8 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Invitation cancelled successfully" });
         }
 
-        // Firm Settings
+        // ==================== Firm Settings ====================
+        
         [HttpGet("firm")]
         public async Task<IActionResult> GetFirmSettings()
         {
@@ -151,7 +159,8 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Branding updated successfully", branding });
         }
 
-        // Plan & Billing
+        // ==================== Plan & Billing ====================
+        
         [HttpGet("plan")]
         public async Task<IActionResult> GetCurrentPlan()
         {
@@ -161,6 +170,7 @@ namespace LawFirmAPI.Controllers
         }
 
         [HttpGet("plans")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetAvailablePlans()
         {
             var plans = await _settingsService.GetAvailablePlans();
@@ -209,7 +219,8 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Payment method removed successfully" });
         }
 
-        // User Preferences
+        // ==================== User Preferences ====================
+        
         [HttpGet("preferences")]
         public async Task<IActionResult> GetUserPreferences()
         {
@@ -228,7 +239,8 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Preferences updated successfully", preferences });
         }
 
-        // Audit Logs
+        // ==================== Audit Logs ====================
+        
         [HttpGet("audit-logs")]
         public async Task<IActionResult> GetAuditLogs(
             [FromQuery] int page = 1,
@@ -239,6 +251,16 @@ namespace LawFirmAPI.Controllers
             var firmId = await _firmContextService.GetCurrentFirmId();
             var logs = await _settingsService.GetAuditLogs(firmId, page, pageSize, action, entityType);
             return Ok(logs);
+        }
+        
+        // ==================== Usage Statistics ====================
+        
+        [HttpGet("usage")]
+        public async Task<IActionResult> GetUsageStatistics()
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var usage = await _settingsService.GetUsageStatistics(firmId);
+            return Ok(usage);
         }
     }
 }

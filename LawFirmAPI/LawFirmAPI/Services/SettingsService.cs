@@ -1,66 +1,31 @@
-// Services/SettingsService.cs
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using LawFirmAPI.Data;
 using LawFirmAPI.Models.Entities;
 using LawFirmAPI.Models.DTOs;
 
 namespace LawFirmAPI.Services
 {
-    public interface ISettingsService
-    {
-        // Profile Settings
-        Task<UserProfileDto> GetProfile(long userId, long firmId);
-        Task<UserProfileDto> UpdateProfile(long userId, long firmId, UpdateProfileDto updateDto);
-        Task<string> UploadAvatar(long userId, long firmId, IFormFile file);
-        Task<bool> RemoveAvatar(long userId, long firmId);
-
-        // Team Management
-        Task<List<UserResponseDto>> GetTeamMembers(long firmId);
-        Task<UserResponseDto> UpdateMemberRole(long firmId, long userId, string role);
-        Task<bool> RemoveTeamMember(long firmId, long userId);
-        Task<List<RoleDto>> GetRoles(long firmId);
-        Task<InviteResponseDto> InviteMember(long firmId, long invitedBy, InviteUserDto inviteDto);
-        Task<bool> CancelInvitation(long firmId, long userFirmId);
-
-        // Firm Settings
-        Task<FirmSettingsDto> GetFirmSettings(long firmId);
-        Task<FirmSettingsDto> UpdateFirmSettings(long firmId, UpdateFirmSettingsDto updateDto);
-        Task<BrandingDto> GetBranding(long firmId);
-        Task<BrandingDto> UpdateBranding(long firmId, UpdateBrandingDto updateDto);
-
-        // Plan & Billing
-        Task<SubscriptionDto> GetCurrentPlan(long firmId);
-        Task<List<PlanDto>> GetAvailablePlans();
-        Task<SubscriptionDto> ChangePlan(long firmId, string planCode, string billingCycle);
-        Task<SubscriptionDto> CancelSubscription(long firmId);
-        Task<List<PaymentMethodDto>> GetPaymentMethods(long firmId);
-        Task<PaymentMethodDto> AddPaymentMethod(long firmId, AddPaymentMethodDto addDto);
-        Task<bool> RemovePaymentMethod(long firmId, long paymentMethodId);
-
-        // User Preferences
-        Task<UserPreferencesDto> GetUserPreferences(long userId, long firmId);
-        Task<UserPreferencesDto> UpdateUserPreferences(long userId, long firmId, UpdateUserPreferencesDto updateDto);
-
-        // Audit Logs
-        Task<List<AuditLogDto>> GetAuditLogs(long firmId, int page, int pageSize, string? action, string? entityType);
-    }
-
     public class SettingsService : ISettingsService
     {
         private readonly ApplicationDbContext _context;
         private readonly IFileService _fileService;
+        private readonly IEmailService _emailService;
 
-        public SettingsService(ApplicationDbContext context, IFileService fileService)
+        public SettingsService(ApplicationDbContext context, IFileService fileService, IEmailService emailService)
         {
             _context = context;
             _fileService = fileService;
+            _emailService = emailService;
         }
 
-        // Profile Settings
+        // ==================== Profile Settings ====================
+        
         public async Task<UserProfileDto> GetProfile(long userId, long firmId)
         {
             var user = await _context.Users
@@ -68,9 +33,6 @@ namespace LawFirmAPI.Services
 
             if (user == null)
                 return null;
-
-            var userFirm = await _context.UserFirms
-                .FirstOrDefaultAsync(uf => uf.UserId == userId && uf.FirmId == firmId);
 
             return new UserProfileDto
             {
@@ -83,7 +45,8 @@ namespace LawFirmAPI.Services
                 PhoneNumber = user.PhoneNumber,
                 ProfileImageUrl = user.ProfileImageUrl,
                 IsEmailVerified = user.IsEmailVerified,
-                LastLoginAt = user.LastLoginAt
+                LastLoginAt = user.LastLoginAt,
+                Roles = new List<string>()
             };
         }
 
@@ -112,14 +75,13 @@ namespace LawFirmAPI.Services
             if (user == null)
                 throw new KeyNotFoundException("User not found");
 
-            // Delete old avatar if exists
             if (!string.IsNullOrEmpty(user.ProfileImageUrl))
             {
                 _fileService.DeleteFile(user.ProfileImageUrl);
             }
 
             var filePath = await _fileService.SaveFile(file, "avatars");
-            var avatarUrl = $"/uploads/avatars/{Path.GetFileName(filePath)}";
+            var avatarUrl = $"/uploads/avatars/{System.IO.Path.GetFileName(filePath)}";
 
             user.ProfileImageUrl = avatarUrl;
             user.UpdatedAt = DateTime.UtcNow;
@@ -144,67 +106,30 @@ namespace LawFirmAPI.Services
             return true;
         }
 
-        // Team Management
-        public async Task<List<UserResponseDto>> GetTeamMembers(long firmId)
+        // ==================== Team Management ====================
+        
+        public async Task<List<TeamMemberDto>> GetTeamMembers(long firmId)
         {
             var members = await _context.UserFirms
                 .Include(uf => uf.User)
-                .Where(uf => uf.FirmId == firmId)
-                .Select(uf => new UserResponseDto
+                .Where(uf => uf.FirmId == firmId && uf.Status != UserFirmStatus.REMOVED)
+                .Select(uf => new TeamMemberDto
                 {
-                    Id = uf.UserId,
+                    Id = uf.Id,
+                    UserId = uf.UserId,
                     Email = uf.User != null ? uf.User.Email : string.Empty,
                     FirstName = uf.User != null ? uf.User.FirstName : string.Empty,
                     LastName = uf.User != null ? uf.User.LastName : string.Empty,
                     FullName = uf.User != null ? $"{uf.User.FirstName} {uf.User.LastName}".Trim() : string.Empty,
-                    PhoneNumber = uf.User != null ? uf.User.PhoneNumber : null,
-                    IsActive = uf.User != null && uf.User.IsActive,
-                    LastLoginAt = uf.User != null ? uf.User.LastLoginAt : null,
-                    FirmRole = uf.Role.ToString(),
+                    Role = uf.Role.ToString(),
                     Status = uf.Status.ToString(),
                     JoinedAt = uf.JoinedAt,
-                    InvitedAt = uf.InvitedAt
+                    InvitedAt = uf.InvitedAt,
+                    ProfileImageUrl = uf.User != null ? uf.User.ProfileImageUrl : null
                 })
                 .ToListAsync();
 
             return members;
-        }
-
-        public async Task<UserResponseDto> UpdateMemberRole(long firmId, long userId, string role)
-        {
-            var userFirm = await _context.UserFirms
-                .FirstOrDefaultAsync(uf => uf.FirmId == firmId && uf.UserId == userId);
-
-            if (userFirm == null)
-                throw new KeyNotFoundException("Team member not found");
-
-            if (!Enum.TryParse<FirmRole>(role, true, out var newRole))
-                throw new ArgumentException("Invalid role");
-
-            userFirm.Role = newRole;
-            userFirm.UpdatedAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
-
-            var members = await GetTeamMembers(firmId);
-            return members.First(m => m.Id == userId);
-        }
-
-        public async Task<bool> RemoveTeamMember(long firmId, long userId)
-        {
-            var userFirm = await _context.UserFirms
-                .FirstOrDefaultAsync(uf => uf.FirmId == firmId && uf.UserId == userId);
-
-            if (userFirm == null)
-                return false;
-
-            // Cannot remove the owner
-            if (userFirm.Role == FirmRole.OWNER)
-                throw new InvalidOperationException("Cannot remove the firm owner");
-
-            userFirm.Status = UserFirmStatus.REMOVED;
-            await _context.SaveChangesAsync();
-
-            return true;
         }
 
         public async Task<List<RoleDto>> GetRoles(long firmId)
@@ -221,32 +146,66 @@ namespace LawFirmAPI.Services
             return roles;
         }
 
+        public async Task<TeamMemberDto> UpdateMemberRole(long firmId, long userId, string role)
+        {
+            var userFirm = await _context.UserFirms
+                .FirstOrDefaultAsync(uf => uf.FirmId == firmId && uf.UserId == userId);
+
+            if (userFirm == null)
+                throw new KeyNotFoundException("Team member not found");
+
+            if (!Enum.TryParse<FirmRole>(role, true, out var newRole))
+                throw new ArgumentException("Invalid role");
+
+            userFirm.Role = newRole;
+            userFirm.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            var members = await GetTeamMembers(firmId);
+            return members.First(m => m.UserId == userId);
+        }
+
+        public async Task<bool> RemoveTeamMember(long firmId, long userId)
+        {
+            var userFirm = await _context.UserFirms
+                .FirstOrDefaultAsync(uf => uf.FirmId == firmId && uf.UserId == userId);
+
+            if (userFirm == null)
+                return false;
+
+            if (userFirm.Role == FirmRole.OWNER)
+                throw new InvalidOperationException("Cannot remove the firm owner");
+
+            userFirm.Status = UserFirmStatus.REMOVED;
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
         public async Task<InviteResponseDto> InviteMember(long firmId, long invitedBy, InviteUserDto inviteDto)
         {
-            // Check if user already exists
             var existingUser = await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == inviteDto.Email);
 
             long userId;
+            bool isNewUser = false;
 
             if (existingUser != null)
             {
                 userId = existingUser.Id;
-                
-                // Check if already a member
+
                 var existingMember = await _context.UserFirms
                     .AnyAsync(uf => uf.UserId == userId && uf.FirmId == firmId);
-                    
+
                 if (existingMember)
                     throw new InvalidOperationException("User is already a member of this firm");
             }
             else
             {
-                // Create new user
                 var username = inviteDto.Email.Split('@')[0];
                 var baseUsername = username;
                 var counter = 1;
-                
+
                 while (await _context.Users.AnyAsync(u => u.Username == username))
                 {
                     username = $"{baseUsername}{counter}";
@@ -270,12 +229,11 @@ namespace LawFirmAPI.Services
                 _context.Users.Add(newUser);
                 await _context.SaveChangesAsync();
                 userId = newUser.Id;
+                isNewUser = true;
 
-                // Send welcome email
-                await SendWelcomeEmail(inviteDto.Email, tempPassword, inviteDto.FirstName);
+                await _emailService.SendWelcomeEmail(inviteDto.Email, tempPassword, inviteDto.FirstName);
             }
 
-            // Parse role
             if (!Enum.TryParse<FirmRole>(inviteDto.Role, true, out var role))
                 role = FirmRole.STAFF;
 
@@ -292,8 +250,7 @@ namespace LawFirmAPI.Services
             _context.UserFirms.Add(userFirm);
             await _context.SaveChangesAsync();
 
-            // Send invitation email
-            await SendInvitationEmail(inviteDto.Email, inviteDto.FirstName, firmId);
+            await _emailService.SendInvitationEmail(inviteDto.Email, inviteDto.FirstName, firmId);
 
             return new InviteResponseDto
             {
@@ -319,27 +276,28 @@ namespace LawFirmAPI.Services
             return true;
         }
 
-        // Firm Settings
+        public async Task<int> GetTeamMemberCount(long firmId)
+        {
+            return await _context.UserFirms
+                .CountAsync(uf => uf.FirmId == firmId && uf.Status == UserFirmStatus.ACTIVE);
+        }
+
+        // ==================== Firm Settings ====================
+        
         public async Task<FirmSettingsDto> GetFirmSettings(long firmId)
         {
             var firm = await _context.Firms.FindAsync(firmId);
+            if (firm == null)
+                return null;
+
             var settings = await _context.FirmSettings
                 .FirstOrDefaultAsync(fs => fs.FirmId == firmId);
 
-            if (settings == null)
-            {
-                settings = new FirmSetting { FirmId = firmId };
-                _context.FirmSettings.Add(settings);
-                await _context.SaveChangesAsync();
-            }
-
             return new FirmSettingsDto
             {
-                FirmId = firm.Id,
-                FirmName = firm.Name,
+                Id = firm.Id,
+                Name = firm.Name,
                 LegalName = firm.LegalName,
-                RegistrationNumber = firm.RegistrationNumber,
-                TaxNumber = firm.TaxNumber,
                 Email = firm.Email,
                 Phone = firm.Phone,
                 Website = firm.Website,
@@ -349,37 +307,25 @@ namespace LawFirmAPI.Services
                 State = firm.State,
                 PostalCode = firm.PostalCode,
                 Country = firm.Country,
-                Timezone = settings.Timezone,
-                DateFormat = settings.DateFormat,
-                TimeFormat = settings.TimeFormat,
-                Currency = settings.Currency,
-                FiscalYearStart = settings.FiscalYearStart,
-                InvoicePrefix = settings.InvoicePrefix,
-                MatterPrefix = settings.MatterPrefix,
-                EmailSignature = settings.EmailSignature
+                TaxNumber = firm.TaxNumber,
+                RegistrationNumber = firm.RegistrationNumber,
+                LogoUrl = firm.LogoUrl,
+                Timezone = settings?.Timezone ?? "UTC",
+                DateFormat = settings?.DateFormat ?? "MM/DD/YYYY",
+                Currency = settings?.Currency ?? "USD"
             };
         }
 
         public async Task<FirmSettingsDto> UpdateFirmSettings(long firmId, UpdateFirmSettingsDto updateDto)
         {
             var firm = await _context.Firms.FindAsync(firmId);
-            var settings = await _context.FirmSettings
-                .FirstOrDefaultAsync(fs => fs.FirmId == firmId);
+            if (firm == null)
+                return null;
 
-            if (settings == null)
-            {
-                settings = new FirmSetting { FirmId = firmId };
-                _context.FirmSettings.Add(settings);
-            }
-
-            if (updateDto.FirmName != null)
-                firm.Name = updateDto.FirmName;
+            if (updateDto.Name != null)
+                firm.Name = updateDto.Name;
             if (updateDto.LegalName != null)
                 firm.LegalName = updateDto.LegalName;
-            if (updateDto.RegistrationNumber != null)
-                firm.RegistrationNumber = updateDto.RegistrationNumber;
-            if (updateDto.TaxNumber != null)
-                firm.TaxNumber = updateDto.TaxNumber;
             if (updateDto.Email != null)
                 firm.Email = updateDto.Email;
             if (updateDto.Phone != null)
@@ -398,26 +344,12 @@ namespace LawFirmAPI.Services
                 firm.PostalCode = updateDto.PostalCode;
             if (updateDto.Country != null)
                 firm.Country = updateDto.Country;
-
-            if (updateDto.Timezone != null)
-                settings.Timezone = updateDto.Timezone;
-            if (updateDto.DateFormat != null)
-                settings.DateFormat = updateDto.DateFormat;
-            if (updateDto.TimeFormat != null)
-                settings.TimeFormat = updateDto.TimeFormat;
-            if (updateDto.Currency != null)
-                settings.Currency = updateDto.Currency;
-            if (updateDto.FiscalYearStart.HasValue)
-                settings.FiscalYearStart = updateDto.FiscalYearStart;
-            if (updateDto.InvoicePrefix != null)
-                settings.InvoicePrefix = updateDto.InvoicePrefix;
-            if (updateDto.MatterPrefix != null)
-                settings.MatterPrefix = updateDto.MatterPrefix;
-            if (updateDto.EmailSignature != null)
-                settings.EmailSignature = updateDto.EmailSignature;
+            if (updateDto.TaxNumber != null)
+                firm.TaxNumber = updateDto.TaxNumber;
+            if (updateDto.RegistrationNumber != null)
+                firm.RegistrationNumber = updateDto.RegistrationNumber;
 
             firm.UpdatedAt = DateTime.UtcNow;
-            settings.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             return await GetFirmSettings(firmId);
@@ -426,11 +358,13 @@ namespace LawFirmAPI.Services
         public async Task<BrandingDto> GetBranding(long firmId)
         {
             var firm = await _context.Firms.FindAsync(firmId);
-            
+            if (firm == null)
+                return null;
+
             return new BrandingDto
             {
                 LogoUrl = firm.LogoUrl,
-                PrimaryColor = null, // Would come from a branding table
+                PrimaryColor = null,
                 SecondaryColor = null
             };
         }
@@ -438,21 +372,22 @@ namespace LawFirmAPI.Services
         public async Task<BrandingDto> UpdateBranding(long firmId, UpdateBrandingDto updateDto)
         {
             var firm = await _context.Firms.FindAsync(firmId);
-            
-            if (updateDto.LogoFile != null)
+            if (firm == null)
+                return null;
+
+            if (updateDto.Logo != null)
             {
-                // Delete old logo
                 if (!string.IsNullOrEmpty(firm.LogoUrl))
                 {
                     _fileService.DeleteFile(firm.LogoUrl);
                 }
-                
-                var filePath = await _fileService.SaveFile(updateDto.LogoFile, "branding");
-                firm.LogoUrl = $"/uploads/branding/{Path.GetFileName(filePath)}";
+
+                var filePath = await _fileService.SaveFile(updateDto.Logo, "branding");
+                firm.LogoUrl = $"/uploads/branding/{System.IO.Path.GetFileName(filePath)}";
             }
-            
+
             await _context.SaveChangesAsync();
-            
+
             return new BrandingDto
             {
                 LogoUrl = firm.LogoUrl,
@@ -461,42 +396,46 @@ namespace LawFirmAPI.Services
             };
         }
 
-        // Plan & Billing
-        public async Task<SubscriptionDto> GetCurrentPlan(long firmId)
+        // ==================== Plan & Billing ====================
+        
+        public async Task<CurrentPlanDto> GetCurrentPlan(long firmId)
         {
             var subscription = await _context.FirmSubscriptions
                 .Include(s => s.Plan)
-                .FirstOrDefaultAsync(s => s.FirmId == firmId);
+                .FirstOrDefaultAsync(s => s.FirmId == firmId && s.Status == "ACTIVE");
 
             var firm = await _context.Firms.FindAsync(firmId);
 
-            if (subscription == null)
+            if (subscription == null || subscription.Plan == null)
             {
-                return new SubscriptionDto
+                return new CurrentPlanDto
                 {
-                    PlanName = "Free",
-                    PlanCode = "free",
-                    Status = firm.SubscriptionStatus.ToString(),
+                    PlanName = "Basic",
+                    PlanCode = "basic",
+                    Status = firm?.SubscriptionStatus.ToString() ?? "TRIAL",
                     BillingCycle = "N/A",
-                    StartDate = firm.CreatedAt,
+                    StartDate = firm?.CreatedAt ?? DateTime.UtcNow,
                     NextBillingDate = null,
-                    EndDate = firm.TrialEndDate,
+                    EndDate = firm?.TrialEndDate,
                     AutoRenew = false,
-                    Features = new List<string> { "Up to 5 users", "Basic support" }
+                    Features = new List<string> { "Up to 5 users", "1GB storage", "Basic features" }
                 };
             }
 
             var features = new List<string>();
-            if (!string.IsNullOrEmpty(subscription.Plan?.Features))
+            if (!string.IsNullOrEmpty(subscription.Plan.Features))
             {
-                var deserialized = System.Text.Json.JsonSerializer.Deserialize<List<string>>(subscription.Plan.Features);
-                features = deserialized ?? new List<string>();
+                try
+                {
+                    features = System.Text.Json.JsonSerializer.Deserialize<List<string>>(subscription.Plan.Features) ?? new List<string>();
+                }
+                catch { }
             }
 
-            return new SubscriptionDto
+            return new CurrentPlanDto
             {
-                PlanName = subscription.Plan?.Name ?? "Basic",
-                PlanCode = subscription.Plan?.Code ?? "basic",
+                PlanName = subscription.Plan.Name,
+                PlanCode = subscription.Plan.Code,
                 Status = subscription.Status,
                 BillingCycle = subscription.BillingCycle,
                 StartDate = subscription.StartDate,
@@ -521,10 +460,8 @@ namespace LawFirmAPI.Services
                 Description = p.Description,
                 PriceMonthly = p.PriceMonthly,
                 PriceYearly = p.PriceYearly,
-                MaxUsers = p.MaxUsers,
-                MaxMatters = p.MaxMatters,
-                MaxContacts = p.MaxContacts,
-                MaxStorageMb = p.MaxStorageMb,
+                MaxUsers = p.MaxUsers ?? 0,
+                MaxStorageMb = p.MaxStorageMb ?? 0,
                 Features = !string.IsNullOrEmpty(p.Features)
                     ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(p.Features) ?? new List<string>()
                     : new List<string>(),
@@ -532,7 +469,7 @@ namespace LawFirmAPI.Services
             }).ToList();
         }
 
-        public async Task<SubscriptionDto> ChangePlan(long firmId, string planCode, string billingCycle)
+        public async Task<CurrentPlanDto> ChangePlan(long firmId, string planCode, string billingCycle)
         {
             var plan = await _context.SubscriptionPlans
                 .FirstOrDefaultAsync(p => p.Code == planCode && p.IsActive);
@@ -544,7 +481,6 @@ namespace LawFirmAPI.Services
                 .FirstOrDefaultAsync(s => s.FirmId == firmId);
 
             var isYearly = billingCycle.ToLower() == "yearly";
-            var price = isYearly ? plan.PriceYearly : plan.PriceMonthly;
             var startDate = DateTime.UtcNow;
             var nextBillingDate = isYearly ? startDate.AddYears(1) : startDate.AddMonths(1);
 
@@ -573,30 +509,35 @@ namespace LawFirmAPI.Services
             }
 
             var firm = await _context.Firms.FindAsync(firmId);
-            firm.SubscriptionStatus = SubscriptionStatus.ACTIVE;
-            firm.MaxUsers = plan.MaxUsers ?? 0;
-            firm.MaxStorageMb = plan.MaxStorageMb ?? 0;
+            if (firm != null)
+            {
+                firm.SubscriptionStatus = SubscriptionStatus.ACTIVE;
+                firm.MaxUsers = plan.MaxUsers ?? 0;
+                firm.MaxStorageMb = plan.MaxStorageMb ?? 0;
+            }
 
             await _context.SaveChangesAsync();
 
             return await GetCurrentPlan(firmId);
         }
 
-        public async Task<SubscriptionDto> CancelSubscription(long firmId)
+        public async Task<CurrentPlanDto> CancelSubscription(long firmId)
         {
             var subscription = await _context.FirmSubscriptions
-                .FirstOrDefaultAsync(s => s.FirmId == firmId);
+                .FirstOrDefaultAsync(s => s.FirmId == firmId && s.Status == "ACTIVE");
 
             if (subscription != null)
             {
-                subscription.Status = "CANCELED";
+                subscription.Status = "CANCELLED";
                 subscription.AutoRenew = false;
                 subscription.UpdatedAt = DateTime.UtcNow;
             }
 
             var firm = await _context.Firms.FindAsync(firmId);
-            firm.SubscriptionStatus = SubscriptionStatus.CANCELED;
-            firm.SubscriptionEndDate = DateTime.UtcNow.AddDays(30); // Grace period
+            if (firm != null)
+            {
+                firm.SubscriptionStatus = SubscriptionStatus.CANCELED;
+            }
 
             await _context.SaveChangesAsync();
 
@@ -605,31 +546,30 @@ namespace LawFirmAPI.Services
 
         public async Task<List<PaymentMethodDto>> GetPaymentMethods(long firmId)
         {
-            // Implementation would get saved payment methods from payment provider
             return new List<PaymentMethodDto>();
         }
 
         public async Task<PaymentMethodDto> AddPaymentMethod(long firmId, AddPaymentMethodDto addDto)
         {
-            // Implementation would add payment method via payment provider
             return new PaymentMethodDto
             {
                 Id = 1,
-                Type = addDto.Type,
-                Last4 = addDto.Last4,
-                ExpiryMonth = addDto.ExpiryMonth,
-                ExpiryYear = addDto.ExpiryYear,
-                IsDefault = addDto.IsDefault
+                Type = "card",
+                LastFour = "4242",
+                ExpiryMonth = "12",
+                ExpiryYear = "2025",
+                CardholderName = "John Doe",
+                IsDefault = true
             };
         }
 
         public async Task<bool> RemovePaymentMethod(long firmId, long paymentMethodId)
         {
-            // Implementation would remove payment method via payment provider
             return true;
         }
 
-        // User Preferences
+        // ==================== User Preferences ====================
+        
         public async Task<UserPreferencesDto> GetUserPreferences(long userId, long firmId)
         {
             var preferences = await _context.UserPreferences
@@ -662,9 +602,7 @@ namespace LawFirmAPI.Services
                 EmailNotifications = preferences.EmailNotifications,
                 PushNotifications = preferences.PushNotifications,
                 CalendarView = preferences.CalendarView,
-                DashboardLayout = preferences.DashboardLayout != null 
-                    ? System.Text.Json.JsonSerializer.Deserialize<DashboardLayoutDto>(preferences.DashboardLayout)
-                    : null
+                DashboardLayout = null
             };
         }
 
@@ -696,8 +634,6 @@ namespace LawFirmAPI.Services
                 preferences.PushNotifications = updateDto.PushNotifications.Value;
             if (updateDto.CalendarView != null)
                 preferences.CalendarView = updateDto.CalendarView;
-            if (updateDto.DashboardLayout != null)
-                preferences.DashboardLayout = System.Text.Json.JsonSerializer.Serialize(updateDto.DashboardLayout);
 
             preferences.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -705,8 +641,9 @@ namespace LawFirmAPI.Services
             return await GetUserPreferences(userId, firmId);
         }
 
-        // Audit Logs
-        public async Task<List<AuditLogDto>> GetAuditLogs(long firmId, int page, int pageSize, string? action, string? entityType)
+        // ==================== Audit Logs ====================
+        
+        public async Task<AuditLogsResponseDto> GetAuditLogs(long firmId, int page, int pageSize, string? action, string? entityType)
         {
             var query = _context.AuditLogs
                 .Include(a => a.User)
@@ -717,6 +654,9 @@ namespace LawFirmAPI.Services
 
             if (!string.IsNullOrEmpty(entityType))
                 query = query.Where(a => a.EntityType == entityType);
+
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
             var logs = await query
                 .OrderByDescending(a => a.CreatedAt)
@@ -736,10 +676,87 @@ namespace LawFirmAPI.Services
                 })
                 .ToListAsync();
 
-            return logs;
+            return new AuditLogsResponseDto
+            {
+                Logs = logs,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = totalPages
+            };
         }
 
-        // Helper Methods
+        // ==================== Usage Statistics ====================
+        
+        public async Task<int> GetMatterCount(long firmId)
+        {
+            return await _context.Matters
+                .CountAsync(m => m.FirmId == firmId && m.DeletedAt == null);
+        }
+
+        public async Task<int> GetContactCount(long firmId)
+        {
+            return await _context.Contacts
+                .CountAsync(c => c.FirmId == firmId && c.DeletedAt == null);
+        }
+
+        public async Task<long> GetStorageUsed(long firmId)
+        {
+            var totalBytes = await _context.Documents
+                .Where(d => d.FirmId == firmId)
+                .SumAsync(d => d.FileSize);
+            
+            return totalBytes / (1024 * 1024); // Convert to MB
+        }
+
+        public async Task<UsageStatisticsDto> GetUsageStatistics(long firmId)
+        {
+            var currentUsers = await GetTeamMemberCount(firmId);
+            var currentMatters = await GetMatterCount(firmId);
+            var currentContacts = await GetContactCount(firmId);
+            var currentStorage = await GetStorageUsed(firmId);
+
+            var plan = await GetCurrentPlan(firmId);
+            var userLimit = plan.PlanCode == "basic" ? 5 : plan.PlanCode == "pro" ? 50 : 999;
+            var matterLimit = plan.PlanCode == "basic" ? 100 : plan.PlanCode == "pro" ? 500 : 9999;
+            var contactLimit = plan.PlanCode == "basic" ? 500 : plan.PlanCode == "pro" ? 2000 : 99999;
+            var storageLimit = plan.PlanCode == "basic" ? 1024 : plan.PlanCode == "pro" ? 10240 : 102400;
+
+            return new UsageStatisticsDto
+            {
+                Users = new UserUsageDto
+                {
+                    Current = currentUsers,
+                    Limit = userLimit,
+                    Remaining = Math.Max(0, userLimit - currentUsers),
+                    Percentage = userLimit > 0 ? (double)currentUsers / userLimit * 100 : 0
+                },
+                Matters = new MatterUsageDto
+                {
+                    Current = currentMatters,
+                    Limit = matterLimit,
+                    Remaining = Math.Max(0, matterLimit - currentMatters),
+                    Percentage = matterLimit > 0 ? (double)currentMatters / matterLimit * 100 : 0
+                },
+                Contacts = new ContactUsageDto
+                {
+                    Current = currentContacts,
+                    Limit = contactLimit,
+                    Remaining = Math.Max(0, contactLimit - currentContacts),
+                    Percentage = contactLimit > 0 ? (double)currentContacts / contactLimit * 100 : 0
+                },
+                Storage = new StorageUsageDto
+                {
+                    CurrentMb = currentStorage,
+                    LimitMb = storageLimit,
+                    RemainingMb = Math.Max(0, storageLimit - currentStorage),
+                    Percentage = storageLimit > 0 ? (double)currentStorage / storageLimit * 100 : 0
+                }
+            };
+        }
+
+        // ==================== Helper Methods ====================
+        
         private string GenerateRandomPassword()
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
@@ -778,16 +795,6 @@ namespace LawFirmAPI.Services
                 FirmRole.VIEWER => new List<string> { "matter.view", "contact.view", "task.view", "document.view", "calendar.view" },
                 _ => new List<string>()
             };
-        }
-
-        private async Task SendWelcomeEmail(string email, string tempPassword, string name)
-        {
-            // Implementation would send email via email service
-        }
-
-        private async Task SendInvitationEmail(string email, string name, long firmId)
-        {
-            // Implementation would send email via email service
         }
     }
 }
