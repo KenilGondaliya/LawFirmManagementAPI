@@ -8,6 +8,8 @@ using LawFirmAPI.Services;
 using LawFirmAPI.Helpers;
 using LawFirmAPI.Middlewares;
 using LawFirmAPI.Options;
+using LawFirmAPI.Requirements;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -85,6 +87,50 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             }
         };
     });
+
+
+builder.Services.AddAuthorization(options =>
+{
+    // Role-based policies
+    options.AddPolicy("AdminOnly", policy => 
+        policy.RequireRole("OWNER", "ADMIN"));
+    
+    options.AddPolicy("ManagerOnly", policy => 
+        policy.RequireRole("OWNER", "ADMIN", "MANAGER"));
+    
+    options.AddPolicy("StaffOnly", policy => 
+        policy.RequireRole("OWNER", "ADMIN", "MANAGER", "STAFF"));
+    
+    // Permission-based policies
+    options.AddPolicy("can_view_contacts", policy => 
+        policy.RequireAssertion(context =>
+            context.User.HasClaim(c => c.Type == "permission" && c.Value == "can_view_contacts") ||
+            context.User.IsInRole("OWNER") ||
+            context.User.IsInRole("ADMIN")));
+    
+    options.AddPolicy("can_edit_contacts", policy => 
+        policy.RequireAssertion(context =>
+            context.User.HasClaim(c => c.Type == "permission" && c.Value == "can_edit_contacts") ||
+            context.User.IsInRole("OWNER") ||
+            context.User.IsInRole("ADMIN")));
+    
+    options.AddPolicy("can_delete_contacts", policy => 
+        policy.RequireAssertion(context =>
+            context.User.IsInRole("OWNER") || context.User.IsInRole("ADMIN")));
+    
+    // Subscription-based policies
+    options.AddPolicy("ProPlan", policy => 
+        policy.Requirements.Add(new SubscriptionRequirement("pro")));
+    
+    options.AddPolicy("EnterprisePlan", policy => 
+        policy.Requirements.Add(new SubscriptionRequirement("enterprise")));
+    
+    options.AddPolicy("AnyPaidPlan", policy => 
+        policy.Requirements.Add(new SubscriptionRequirement("any")));
+});
+
+builder.Services.AddSingleton<IAuthorizationHandler, SubscriptionHandler>();
+builder.Services.AddScoped<IFeatureAccessService, FeatureAccessService>();
 
 // Services
 builder.Services.AddScoped<IAuthService, AuthService>();

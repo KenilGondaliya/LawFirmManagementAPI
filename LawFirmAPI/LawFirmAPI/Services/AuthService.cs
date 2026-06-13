@@ -108,18 +108,26 @@ namespace LawFirmAPI.Services
             var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Secret"] ?? "your-super-secret-key-with-minimum-32-characters-long");
 
             var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim("userId", user.Id.ToString()),
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.Name, user.Username),
+        new Claim("firmId", firm.Id.ToString()),
+        new Claim("firmName", firm.Name),
+        new Claim(ClaimTypes.Role, role),
+        new Claim("role", role),
+        new Claim("isTemporary", "false"),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+        new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
+    };
+
+            // Add permissions based on role
+            var permissions = GetPermissionsForRole(role);
+            foreach (var permission in permissions)
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim("userId", user.Id.ToString()),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim("firmId", firm.Id.ToString()),
-                new Claim("firmName", firm.Name),
-                new Claim(ClaimTypes.Role, role),
-                new Claim("isTemporary", "false"),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64)
-            };
+                claims.Add(new Claim("permission", permission));
+            }
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -132,6 +140,51 @@ namespace LawFirmAPI.Services
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
+        }
+
+        private string[] GetPermissionsForRole(string role)
+        {
+            return role.ToUpper() switch
+            {
+                "OWNER" => new[]
+                {
+            "can_view_contacts", "can_edit_contacts", "can_delete_contacts",
+            "can_view_matters", "can_edit_matters", "can_delete_matters",
+            "can_view_tasks", "can_edit_tasks", "can_delete_tasks",
+            "can_view_documents", "can_upload_documents", "can_delete_documents",
+            "can_manage_users", "can_manage_roles", "can_view_billing", "can_edit_billing"
+        },
+                "ADMIN" => new[]
+                {
+            "can_view_contacts", "can_edit_contacts", "can_delete_contacts",
+            "can_view_matters", "can_edit_matters", "can_delete_matters",
+            "can_view_tasks", "can_edit_tasks", "can_delete_tasks",
+            "can_view_documents", "can_upload_documents", "can_delete_documents",
+            "can_manage_users", "can_view_billing"
+        },
+                "MANAGER" => new[]
+                {
+            "can_view_contacts", "can_edit_contacts",
+            "can_view_matters", "can_edit_matters",
+            "can_view_tasks", "can_edit_tasks",
+            "can_view_documents", "can_upload_documents"
+        },
+                "STAFF" => new[]
+                {
+            "can_view_contacts", "can_edit_contacts",
+            "can_view_matters",
+            "can_view_tasks", "can_edit_tasks",
+            "can_view_documents"
+        },
+                "VIEWER" => new[]
+                {
+            "can_view_contacts",
+            "can_view_matters",
+            "can_view_tasks",
+            "can_view_documents"
+        },
+                _ => Array.Empty<string>()
+            };
         }
 
         private async Task<AuthResponseDto> GenerateAuthResponse(User user, Firm firm, string ipAddress)
@@ -918,7 +971,6 @@ namespace LawFirmAPI.Services
                 Status = UserFirmStatus.PENDING.ToString(),
             };
         }
-
 
         public async Task<AuthResponseDto> AcceptInvite(AcceptInviteDto acceptInviteDto, string ipAddress)
         {
