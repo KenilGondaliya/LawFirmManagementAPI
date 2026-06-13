@@ -56,17 +56,14 @@ namespace LawFirmAPI.Controllers
             
             try
             {
-                // Try to deserialize as string array
                 var features = JsonSerializer.Deserialize<string[]>(featuresJson);
                 if (features != null && features.Length > 0)
                     return features;
             }
             catch
             {
-                // If deserialization fails, try to handle as simple string
                 try
                 {
-                    // Check if it's a simple string (not JSON array)
                     if (!featuresJson.TrimStart().StartsWith("["))
                     {
                         return new[] { featuresJson };

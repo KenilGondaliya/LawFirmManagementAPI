@@ -18,9 +18,6 @@ import { ResendVerification } from "./pages/Auth/ResendVerification";
 
 // Other imports remain the same...
 import { Dashboard } from "./pages/Dashboard/Dashboard";
-import Profile from "./pages/Settings/Profile";
-import Team from "./pages/Settings/Team";
-import FirmSettings from "./pages/Settings/FirmSettings";
 import { ContactsList } from "./pages/Contacts/ContactsList";
 import { ContactDetail } from "./pages/Contacts/ContactDetail";
 import { CreateContact } from "./pages/Contacts/CreateContact";
@@ -48,6 +45,9 @@ import { EditContact } from "./pages/Contacts/EditContact";
 import { AcceptInvite } from "./pages/Auth/AcceptInvite";
 import { PricingPlans } from "./pages/Pricing/PricingPlans";
 import { BillingSettings } from "./pages/Settings/BillingSettings";
+import { Profile } from "./pages/Settings/Profile";
+import { Team } from "./pages/Settings/Team";
+import { FirmSettings } from "./pages/Settings/FirmSettings";
 
 function App() {
   const { initializeAuth, isLoading } = useAuthStore();
