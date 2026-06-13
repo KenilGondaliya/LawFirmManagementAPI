@@ -143,7 +143,6 @@ app.Use(async (context, next) =>
     var path = context.Request.Path.ToString().ToLower();
     var method = context.Request.Method;
     
-    // ✅ Define ALL public endpoints that should NEVER require authentication or firm context
     var publicPaths = new[]
     {
         "/api/v1/auth/register",

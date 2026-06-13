@@ -1,4 +1,5 @@
 // Models/Entities/SubscriptionPlan.cs
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -26,7 +27,8 @@ namespace LawFirmAPI.Models.Entities
         
         public decimal PriceYearly { get; set; }
         
-        [Column(TypeName = "json")]
+        // ✅ Change from Json to Text for PostgreSQL
+        [Column(TypeName = "text")]
         public string? Features { get; set; }
         
         public int? MaxUsers { get; set; }
@@ -44,4 +46,3 @@ namespace LawFirmAPI.Models.Entities
         public virtual ICollection<FirmSubscription> FirmSubscriptions { get; set; } = new List<FirmSubscription>();
     }
 }
-

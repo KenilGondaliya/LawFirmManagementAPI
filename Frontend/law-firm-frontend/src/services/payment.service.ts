@@ -1,6 +1,6 @@
 // src/services/payment.service.ts
-import api from './api';
-import axios from 'axios';
+import api from "./api";
+import axios from "axios";
 
 export interface SubscriptionPlan {
   id: number;
@@ -46,19 +46,25 @@ declare global {
 export const paymentService = {
   // Get all subscription plans
   getPlans: async (): Promise<SubscriptionPlan[]> => {
-    const response = await api.get('/subscription-plans');
+    const response = await api.get("/subscription-plans");
     return response.data;
   },
 
   // Get current firm's subscription status
   getSubscriptionStatus: async (): Promise<SubscriptionStatus> => {
-    const response = await api.get('/payment/subscription-status');
+    const response = await api.get("/payment/subscription-status");
     return response.data;
   },
 
   // Create Razorpay order
-  createOrder: async (planId: number, billingCycle: string): Promise<CreateOrderResponse> => {
-    const response = await api.post('/payment/create-order', { planId, billingCycle });
+  createOrder: async (
+    planId: number,
+    billingCycle: string,
+  ): Promise<CreateOrderResponse> => {
+    const response = await api.post("/payment/create-order", {
+      planId,
+      billingCycle,
+    });
     return response.data;
   },
 
@@ -69,21 +75,30 @@ export const paymentService = {
     billingCycle: string,
     orderId: string,
     paymentId: string,
-    signature: string
+    signature: string,
   ): Promise<void> => {
-    await api.post('/payment/verify-payment', {
+    console.log("Verifying payment:", {
       firmId,
       planId,
       billingCycle,
       orderId,
       paymentId,
-      signature
+      signature,
     });
+    const response = await api.post("/payment/verify-payment", {
+      firmId,
+      planId,
+      billingCycle,
+      orderId,
+      paymentId,
+      signature,
+    });
+    return response.data;
   },
 
   // Cancel current subscription
   cancelSubscription: async (): Promise<void> => {
-    await api.post('/payment/cancel-subscription');
+    await api.post("/payment/cancel-subscription");
   },
 
   // Initialize Razorpay checkout
@@ -92,12 +107,12 @@ export const paymentService = {
     plan: SubscriptionPlan,
     billingCycle: string,
     onSuccess: () => void,
-    onError: (error: any) => void
+    onError: (error: any) => void,
   ) => {
     // Load Razorpay script if not already loaded
     if (!window.Razorpay) {
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.async = true;
       script.onload = () => {
         openRazorpay(order, plan, billingCycle, onSuccess, onError);
@@ -106,7 +121,7 @@ export const paymentService = {
     } else {
       openRazorpay(order, plan, billingCycle, onSuccess, onError);
     }
-  }
+  },
 };
 
 function openRazorpay(
@@ -114,26 +129,26 @@ function openRazorpay(
   plan: SubscriptionPlan,
   billingCycle: string,
   onSuccess: () => void,
-  onError: (error: any) => void
+  onError: (error: any) => void,
 ) {
   const options = {
     key: order.keyId,
     amount: order.amount,
     currency: order.currency,
-    name: 'Praava',
-    description: `${plan.name} Plan - ${billingCycle === 'YEARLY' ? 'Yearly' : 'Monthly'} Subscription`,
+    name: "Praava",
+    description: `${plan.name} Plan - ${billingCycle === "YEARLY" ? "Yearly" : "Monthly"} Subscription`,
     order_id: order.orderId,
     handler: async (response: any) => {
       try {
         // Get firmId from localStorage or store
-        const firmId = localStorage.getItem('firmId') || '';
+        const firmId = localStorage.getItem("firmId") || "";
         await paymentService.verifyPayment(
           parseInt(firmId),
           plan.id,
           billingCycle,
           response.razorpay_order_id,
           response.razorpay_payment_id,
-          response.razorpay_signature
+          response.razorpay_signature,
         );
         onSuccess();
       } catch (error) {
@@ -141,19 +156,19 @@ function openRazorpay(
       }
     },
     prefill: {
-      name: localStorage.getItem('userName') || '',
-      email: localStorage.getItem('userEmail') || '',
+      name: localStorage.getItem("userName") || "",
+      email: localStorage.getItem("userEmail") || "",
     },
     theme: {
-      color: '#4F46E5'
+      color: "#4F46E5",
     },
     modal: {
       ondismiss: () => {
-        onError(new Error('Payment cancelled'));
-      }
-    }
+        onError(new Error("Payment cancelled"));
+      },
+    },
   };
-  
+
   const razorpay = new window.Razorpay(options);
   razorpay.open();
 }

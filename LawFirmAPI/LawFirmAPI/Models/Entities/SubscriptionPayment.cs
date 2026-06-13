@@ -1,4 +1,5 @@
-// Models/Entities/SubscriptionPayment.cs
+// Models/Entities/SubscriptionPayment.cs - Simplified
+
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -12,8 +13,6 @@ namespace LawFirmAPI.Models.Entities
         public long Id { get; set; }
         
         public long FirmId { get; set; }
-        
-        public long SubscriptionId { get; set; }
         
         [MaxLength(100)]
         public string RazorpayOrderId { get; set; } = string.Empty;
@@ -30,7 +29,7 @@ namespace LawFirmAPI.Models.Entities
         public string Currency { get; set; } = "INR";
         
         [MaxLength(50)]
-        public string Status { get; set; } = "PENDING"; // PENDING, SUCCESS, FAILED
+        public string Status { get; set; } = "PENDING";
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
@@ -38,8 +37,5 @@ namespace LawFirmAPI.Models.Entities
         
         [ForeignKey(nameof(FirmId))]
         public virtual Firm? Firm { get; set; }
-        
-        [ForeignKey(nameof(SubscriptionId))]
-        public virtual FirmSubscription? Subscription { get; set; }
     }
 }
