@@ -1,5 +1,3 @@
-// src/stores/authStore.ts - COMPLETE FIXED VERSION
-
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import {
@@ -26,7 +24,6 @@ interface AuthState {
   requiresFirmSelection: boolean;
   authError: string | null;
 
-  // Auth actions
   login: (
     emailOrUsername: string,
     password: string,
@@ -36,20 +33,16 @@ interface AuthState {
   logout: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
 
-  // Firm actions
   createFirm: (data: CreateFirmDto) => Promise<void>;
   switchFirm: (firmId: number) => Promise<void>;
   setCurrentFirm: (firm: Firm) => void;
 
-  // Profile actions
   updateProfile: (data: UpdateProfileDto) => Promise<void>;
   changePassword: (data: ChangePasswordDto) => Promise<void>;
 
-  // Email verification
   resendVerification: (email: string) => Promise<void>;
   verifyEmail: (token: string) => Promise<void>;
 
-  // Team actions
   inviteUser: (data: InviteUserDto) => Promise<InviteResponse>;
   acceptInvite: (
     email: string,
@@ -57,7 +50,6 @@ interface AuthState {
     lastName?: string,
   ) => Promise<void>;
 
-  // Utility
   clearAuth: () => void;
   initializeAuth: () => Promise<void>;
   setAuthFromResponse: (response: AuthResponse) => void;
@@ -139,7 +131,6 @@ export const useAuthStore = create<AuthState>()(
           }
         },
 
-        // ✅ FIXED: Accept invitation and update tokens
         acceptInvite: async (email, firstName, lastName) => {
           set({ isLoading: true, authError: null });
           try {
@@ -149,7 +140,6 @@ export const useAuthStore = create<AuthState>()(
               lastName,
             );
 
-            // ✅ CRITICAL: Update tokens in localStorage and axios headers
             get().setAuthFromResponse(response);
 
             set({ isLoading: false });
@@ -163,9 +153,6 @@ export const useAuthStore = create<AuthState>()(
           }
         },
 
-        // ✅ NEW: Helper method to set auth from response
-        // src/stores/authStore.ts - Update setAuthFromResponse to store user info
-
         setAuthFromResponse: (response: AuthResponse) => {
           // Store tokens
           if (response.accessToken) {
@@ -175,13 +162,20 @@ export const useAuthStore = create<AuthState>()(
               `Bearer ${response.accessToken}`;
           }
 
-          // ✅ Store user info for payment prefill
-          if (response.user) {
-            localStorage.setItem(
-              "userName",
-              response.user.fullName || response.user.username,
-            );
-            localStorage.setItem("userEmail", response.user.email);
+          const user = response.user;
+          if (
+            user &&
+            user.profileImageUrl &&
+            user.profileImageUrl.startsWith("/")
+          ) {
+            const baseUrl =
+              process.env.REACT_APP_API_URL || "http://localhost:5165";
+            user.profileImageUrl = `${baseUrl}${user.profileImageUrl}`;
+          }
+
+          if (user) {
+            localStorage.setItem("userName", user.fullName || user.username);
+            localStorage.setItem("userEmail", user.email);
             if (response.currentFirm) {
               localStorage.setItem(
                 "firmId",
@@ -191,7 +185,7 @@ export const useAuthStore = create<AuthState>()(
           }
 
           set({
-            user: response.user,
+            user: user,
             firms: response.firms,
             currentFirm: response.currentFirm || null,
             isAuthenticated: true,

@@ -70,25 +70,30 @@ namespace LawFirmAPI.Services
             if (user == null)
                 throw new KeyNotFoundException("User not found");
 
+            // Delete old avatar if exists
             if (!string.IsNullOrEmpty(user.ProfileImageUrl))
             {
-                _fileService.DeleteFile(user.ProfileImageUrl);
+                ((FileService)_fileService).DeleteFile(user.ProfileImageUrl);
             }
 
-            var relativePath = await _fileService.SaveFile(file, "avatars");
+            // Save new file (returns relative path)
+            var relativePath = await ((FileService)_fileService).SaveFile(file, "avatars");
 
-            // ✅ Build absolute URL
+            // ✅ Build absolute URL using the request context
             var request = _httpContextAccessor.HttpContext?.Request;
             var baseUrl = $"{request?.Scheme}://{request?.Host}";
-            var avatarUrl = $"{baseUrl}{relativePath}";
+            var absoluteUrl = $"{baseUrl}{relativePath}";
 
-            user.ProfileImageUrl = avatarUrl;
+            Console.WriteLine($"Relative path: {relativePath}");
+            Console.WriteLine($"Absolute URL: {absoluteUrl}");
+
+            // Store absolute URL in database
+            user.ProfileImageUrl = absoluteUrl;
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
-            return avatarUrl;
+            return absoluteUrl;
         }
-
 
         public async Task<bool> RemoveAvatar(long userId, long firmId)
         {
@@ -97,7 +102,8 @@ namespace LawFirmAPI.Services
 
             if (!string.IsNullOrEmpty(user.ProfileImageUrl))
             {
-                _fileService.DeleteFile(user.ProfileImageUrl);
+                // Cast to concrete FileService to avoid ambiguous method resolution
+                ((FileService)_fileService).DeleteFile(user.ProfileImageUrl);
                 user.ProfileImageUrl = null;
                 await _context.SaveChangesAsync();
             }
@@ -337,9 +343,9 @@ namespace LawFirmAPI.Services
             if (updateDto.Logo != null)
             {
                 if (!string.IsNullOrEmpty(firm.LogoUrl))
-                    _fileService.DeleteFile(firm.LogoUrl);
+                    ((FileService)_fileService).DeleteFile(firm.LogoUrl);
 
-                var filePath = await _fileService.SaveFile(updateDto.Logo, "branding");
+                var filePath = await ((FileService)_fileService).SaveFile(updateDto.Logo, "branding");
                 firm.LogoUrl = $"/uploads/branding/{System.IO.Path.GetFileName(filePath)}";
             }
 

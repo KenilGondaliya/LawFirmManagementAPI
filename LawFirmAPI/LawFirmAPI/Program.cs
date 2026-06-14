@@ -1,4 +1,4 @@
-// Program.cs - Fixed static files configuration
+// Program.cs - Complete Fixed Version
 
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -180,10 +180,12 @@ var avatarsPath = Path.Combine(uploadsPath, "avatars");
 if (!Directory.Exists(uploadsPath))
 {
     Directory.CreateDirectory(uploadsPath);
+    Console.WriteLine($"Created Uploads directory: {uploadsPath}");
 }
 if (!Directory.Exists(avatarsPath))
 {
     Directory.CreateDirectory(avatarsPath);
+    Console.WriteLine($"Created avatars directory: {avatarsPath}");
 }
 
 // Configure pipeline
@@ -195,25 +197,29 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
-app.UseAuthentication();
 
-// ✅ Static files middleware - ORDER MATTERS! Put this BEFORE authentication checks for images
+// ✅ Static files middleware - MUST come before authentication
 app.UseStaticFiles(); // For wwwroot folder
 
-// ✅ Serve files from Uploads folder with proper configuration
+// ✅ Serve files from Uploads folder
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsPath),
     RequestPath = "/uploads",
     ServeUnknownFileTypes = true,
-    DefaultContentType = "application/octet-stream"
+    OnPrepareResponse = ctx =>
+    {
+        // Allow caching for images
+        ctx.Context.Response.Headers.Append("Cache-Control", "public, max-age=86400");
+    }
 });
+
+app.UseAuthentication();
 
 // Custom firm context middleware
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.ToString().ToLower();
-    var method = context.Request.Method;
     
     // ✅ Allow access to uploaded images without authentication
     if (path.StartsWith("/uploads/"))

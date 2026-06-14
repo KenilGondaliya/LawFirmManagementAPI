@@ -1,4 +1,4 @@
-// src/pages/Settings/Profile.tsx - Fixed version with better image handling
+// src/pages/Settings/Profile.tsx - Fixed with proper URL handling
 
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
@@ -8,6 +8,24 @@ import { Input } from '../../components/UI/Input';
 import { Card } from '../../components/UI/Card';
 import { UserIcon, MailIcon, PhoneIcon, CameraIcon, TrashIcon, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// ✅ Helper function to get absolute image URL
+const getAbsoluteImageUrl = (url: string | undefined): string | null => {
+  if (!url) return null;
+  
+  // If it's already an absolute URL, return it
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // If it's a relative URL, prepend the API base URL
+  if (url.startsWith('/')) {
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5165';
+    return `${baseUrl}${url}`;
+  }
+  
+  return url;
+};
 
 export const Profile: React.FC = () => {
   const { user, updateProfile, setUser } = useAuthStore();
@@ -29,18 +47,9 @@ export const Profile: React.FC = () => {
         phoneNumber: user.phoneNumber || '',
       });
       
-      // ✅ Set avatar URL from user data
-      if (user.profileImageUrl) {
-        // If URL is relative, convert to absolute
-        let url = user.profileImageUrl;
-        if (url.startsWith('/')) {
-          const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5165';
-          url = `${baseUrl}${url}`;
-        }
-        setAvatarUrl(url);
-      } else {
-        setAvatarUrl(null);
-      }
+      // ✅ Convert relative URL to absolute URL
+      const absoluteUrl = getAbsoluteImageUrl(user.profileImageUrl);
+      setAvatarUrl(absoluteUrl);
       setImageError(false);
     }
   }, [user]);
@@ -62,13 +71,13 @@ export const Profile: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    // ✅ Validate file type
+    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
     
-    // ✅ Validate file size (max 5MB)
+    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image size should be less than 5MB');
       return;
@@ -76,20 +85,21 @@ export const Profile: React.FC = () => {
     
     setIsUploading(true);
     try {
-      // ✅ Show preview immediately
+      // Show preview immediately
       const previewUrl = URL.createObjectURL(file);
       setAvatarUrl(previewUrl);
       setImageError(false);
       
-      // ✅ Upload to server
+      // Upload to server
       const uploadedUrl = await settingsService.uploadAvatar(file);
       
-      // ✅ Update with server URL
-      setAvatarUrl(uploadedUrl);
+      // ✅ Convert the returned relative URL to absolute
+      const absoluteUrl = getAbsoluteImageUrl(uploadedUrl);
+      setAvatarUrl(absoluteUrl);
       
-      // ✅ Update user in store
+      // Update user in store with absolute URL
       if (user) {
-        const updatedUser = { ...user, profileImageUrl: uploadedUrl };
+        const updatedUser = { ...user, profileImageUrl: absoluteUrl ?? undefined };
         setUser(updatedUser);
       }
       
@@ -97,8 +107,9 @@ export const Profile: React.FC = () => {
     } catch (error: any) {
       console.error('Upload failed:', error);
       toast.error(error.response?.data?.message || 'Failed to upload avatar');
-      // ✅ Revert preview on error
-      setAvatarUrl(user?.profileImageUrl || null);
+      // Revert preview on error
+      const absoluteUrl = getAbsoluteImageUrl(user?.profileImageUrl);
+      setAvatarUrl(absoluteUrl);
     } finally {
       setIsUploading(false);
     }
@@ -113,7 +124,7 @@ export const Profile: React.FC = () => {
       setAvatarUrl(null);
       setImageError(false);
       
-      // ✅ Update user in store
+      // Update user in store
       if (user) {
         const updatedUser = { ...user, profileImageUrl: undefined };
         setUser(updatedUser);
@@ -130,7 +141,13 @@ export const Profile: React.FC = () => {
   const handleImageError = () => {
     console.error('Failed to load image:', avatarUrl);
     setImageError(true);
-    setAvatarUrl(null);
+    // Try to reload with cache busting
+    if (avatarUrl && !avatarUrl.includes('?t=')) {
+      setAvatarUrl(`${avatarUrl}?t=${Date.now()}`);
+      setTimeout(() => setImageError(false), 100);
+    } else {
+      setAvatarUrl(null);
+    }
   };
 
   return (

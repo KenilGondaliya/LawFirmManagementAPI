@@ -1,5 +1,5 @@
 // src/services/settings.service.ts
-import api from './api';
+import api from "./api";
 
 export interface UpdateProfileDto {
   firstName?: string;
@@ -70,7 +70,7 @@ export interface CurrentPlan {
   nextBillingDate?: string;
   endDate?: string;
   autoRenew: boolean;
-  featuresList: string[];  // Changed from 'features' to 'featuresList'
+  featuresList: string[]; // Changed from 'features' to 'featuresList'
 }
 
 export interface Plan {
@@ -82,10 +82,9 @@ export interface Plan {
   priceYearly: number;
   maxUsers: number;
   maxStorageMb: number;
-  featuresList: string[];  // Changed from 'features' to 'featuresList'
+  featuresList: string[]; // Changed from 'features' to 'featuresList'
   isPopular: boolean;
 }
-
 
 export interface UserPreferences {
   theme: string;
@@ -110,50 +109,84 @@ export interface AuditLog {
 }
 
 export interface UsageStatistics {
-  users: { current: number; limit: number; remaining: number; percentage: number };
-  matters: { current: number; limit: number; remaining: number; percentage: number };
-  contacts: { current: number; limit: number; remaining: number; percentage: number };
-  storage: { currentMb: number; limitMb: number; remainingMb: number; percentage: number; currentFormatted: string; limitFormatted: string };
+  users: {
+    current: number;
+    limit: number;
+    remaining: number;
+    percentage: number;
+  };
+  matters: {
+    current: number;
+    limit: number;
+    remaining: number;
+    percentage: number;
+  };
+  contacts: {
+    current: number;
+    limit: number;
+    remaining: number;
+    percentage: number;
+  };
+  storage: {
+    currentMb: number;
+    limitMb: number;
+    remainingMb: number;
+    percentage: number;
+    currentFormatted: string;
+    limitFormatted: string;
+  };
 }
 
 export const settingsService = {
   // Profile Settings
   getProfile: async (): Promise<any> => {
-    const response = await api.get('/settings/profile');
+    const response = await api.get("/settings/profile");
     return response.data;
   },
 
   updateProfile: async (data: UpdateProfileDto): Promise<any> => {
-    const response = await api.put('/settings/profile', data);
+    const response = await api.put("/settings/profile", data);
     return response.data;
   },
 
   uploadAvatar: async (file: File): Promise<string> => {
     const formData = new FormData();
-    formData.append('file', file);
-    const response = await api.post('/settings/profile/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    formData.append("file", file);
+    const response = await api.post("/settings/profile/avatar", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
-    return response.data.avatarUrl;
+
+    let avatarUrl = response.data.avatarUrl;
+    if (avatarUrl && avatarUrl.startsWith("/")) {
+      const baseUrl = process.env.REACT_APP_API_URL || "http://localhost:5165";
+      avatarUrl = `${baseUrl}${avatarUrl}`;
+    }
+
+    return avatarUrl;
   },
 
   removeAvatar: async (): Promise<void> => {
-    await api.delete('/settings/profile/avatar');
+    await api.delete("/settings/profile/avatar");
   },
 
   // Team Management
   getTeamMembers: async (): Promise<TeamMember[]> => {
-    const response = await api.get('/settings/teams');
+    const response = await api.get("/settings/teams");
     return response.data;
   },
 
   getRoles: async (): Promise<Role[]> => {
-    const response = await api.get('/settings/teams/roles');
+    const response = await api.get("/settings/teams/roles");
     return response.data;
   },
 
-  updateMemberRole: async (userId: number, role: string): Promise<TeamMember> => {
-    const response = await api.put(`/settings/teams/members/${userId}/role?role=${role}`);
+  updateMemberRole: async (
+    userId: number,
+    role: string,
+  ): Promise<TeamMember> => {
+    const response = await api.put(
+      `/settings/teams/members/${userId}/role?role=${role}`,
+    );
     return response.data.member;
   },
 
@@ -162,7 +195,7 @@ export const settingsService = {
   },
 
   inviteMember: async (data: InviteUserDto): Promise<any> => {
-    const response = await api.post('/settings/teams/invite', data);
+    const response = await api.post("/settings/teams/invite", data);
     return response.data;
   },
 
@@ -172,73 +205,93 @@ export const settingsService = {
 
   // Firm Settings
   getFirmSettings: async (): Promise<FirmSettings> => {
-    const response = await api.get('/settings/firm');
+    const response = await api.get("/settings/firm");
     return response.data;
   },
 
-  updateFirmSettings: async (data: Partial<FirmSettings>): Promise<FirmSettings> => {
-    const response = await api.put('/settings/firm', data);
+  updateFirmSettings: async (
+    data: Partial<FirmSettings>,
+  ): Promise<FirmSettings> => {
+    const response = await api.put("/settings/firm", data);
     return response.data.settings;
   },
 
   getBranding: async (): Promise<Branding> => {
-    const response = await api.get('/settings/firm/branding');
+    const response = await api.get("/settings/firm/branding");
     return response.data;
   },
 
   updateBranding: async (data: FormData): Promise<Branding> => {
-    const response = await api.put('/settings/firm/branding', data, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    const response = await api.put("/settings/firm/branding", data, {
+      headers: { "Content-Type": "multipart/form-data" },
     });
     return response.data.branding;
   },
 
   // Plan & Billing
   getCurrentPlan: async (): Promise<CurrentPlan> => {
-    const response = await api.get('/settings/plan');
+    const response = await api.get("/settings/plan");
     return response.data;
   },
 
   getAvailablePlans: async (): Promise<Plan[]> => {
-    const response = await api.get('/settings/plans');
+    const response = await api.get("/settings/plans");
     return response.data;
   },
 
-  changePlan: async (planCode: string, billingCycle: string): Promise<CurrentPlan> => {
-    const response = await api.post(`/settings/plan/change?planCode=${planCode}&billingCycle=${billingCycle}`);
+  changePlan: async (
+    planCode: string,
+    billingCycle: string,
+  ): Promise<CurrentPlan> => {
+    const response = await api.post(
+      `/settings/plan/change?planCode=${planCode}&billingCycle=${billingCycle}`,
+    );
     return response.data.plan;
   },
 
   cancelSubscription: async (): Promise<CurrentPlan> => {
-    const response = await api.post('/settings/plan/cancel');
+    const response = await api.post("/settings/plan/cancel");
     return response.data.plan;
   },
 
   // User Preferences
   getUserPreferences: async (): Promise<UserPreferences> => {
-    const response = await api.get('/settings/preferences');
+    const response = await api.get("/settings/preferences");
     return response.data;
   },
 
-  updateUserPreferences: async (data: Partial<UserPreferences>): Promise<UserPreferences> => {
-    const response = await api.put('/settings/preferences', data);
+  updateUserPreferences: async (
+    data: Partial<UserPreferences>,
+  ): Promise<UserPreferences> => {
+    const response = await api.put("/settings/preferences", data);
     return response.data.preferences;
   },
 
   // Audit Logs
-  getAuditLogs: async (page: number = 1, pageSize: number = 50, action?: string, entityType?: string): Promise<{ logs: AuditLog[]; totalCount: number; page: number; pageSize: number; totalPages: number }> => {
+  getAuditLogs: async (
+    page: number = 1,
+    pageSize: number = 50,
+    action?: string,
+    entityType?: string,
+  ): Promise<{
+    logs: AuditLog[];
+    totalCount: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> => {
     const params = new URLSearchParams();
-    params.append('page', page.toString());
-    params.append('pageSize', pageSize.toString());
-    if (action) params.append('action', action);
-    if (entityType) params.append('entityType', entityType);
+    params.append("page", page.toString());
+    params.append("pageSize", pageSize.toString());
+    if (action) params.append("action", action);
+    if (entityType) params.append("entityType", entityType);
     const response = await api.get(`/settings/audit-logs?${params.toString()}`);
     return response.data;
   },
 
   // Usage Statistics
   getUsageStatistics: async (): Promise<UsageStatistics> => {
-    const response = await api.get('/settings/usage');
+    const response = await api.get("/settings/usage");
     return response.data;
   },
 };
