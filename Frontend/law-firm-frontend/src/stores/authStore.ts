@@ -61,6 +61,7 @@ interface AuthState {
   clearAuth: () => void;
   initializeAuth: () => Promise<void>;
   setAuthFromResponse: (response: AuthResponse) => void;
+  setUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -234,6 +235,10 @@ export const useAuthStore = create<AuthState>()(
             set({ isLoading: false });
             throw error;
           }
+        },
+
+        setUser: (user) => {
+          set({ user });
         },
 
         resendVerification: async (email) => {

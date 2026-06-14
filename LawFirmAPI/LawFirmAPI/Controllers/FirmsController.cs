@@ -68,8 +68,8 @@ namespace LawFirmAPI.Controllers
             if (firm == null)
                 return NotFound();
             
-            if (settingsDto.FirmName != null)
-                firm.Name = settingsDto.FirmName;
+            if (settingsDto.Name != null)
+                firm.Name = settingsDto.Name;
             if (settingsDto.LegalName != null)
                 firm.LegalName = settingsDto.LegalName;
             if (settingsDto.Email != null)

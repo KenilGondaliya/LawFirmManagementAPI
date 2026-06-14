@@ -70,7 +70,7 @@ export interface CurrentPlan {
   nextBillingDate?: string;
   endDate?: string;
   autoRenew: boolean;
-  features: string[];
+  featuresList: string[];  // Changed from 'features' to 'featuresList'
 }
 
 export interface Plan {
@@ -82,9 +82,10 @@ export interface Plan {
   priceYearly: number;
   maxUsers: number;
   maxStorageMb: number;
-  features: string[];
+  featuresList: string[];  // Changed from 'features' to 'featuresList'
   isPopular: boolean;
 }
+
 
 export interface UserPreferences {
   theme: string;

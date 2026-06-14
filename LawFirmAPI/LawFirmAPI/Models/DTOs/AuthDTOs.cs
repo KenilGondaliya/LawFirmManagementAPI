@@ -43,6 +43,25 @@ namespace LawFirmAPI.Models.DTOs
         public bool RememberMe { get; set; } = false;
     }
 
+    public class UserResponseDto
+    {
+        public long Id { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; }
+        public bool IsActive { get; set; }
+        public bool IsEmailVerified { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+        public string? ProfileImageUrl { get; set; }
+        public string FirmRole { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public DateTime? JoinedAt { get; set; }
+        public DateTime? InvitedAt { get; set; }
+        public List<string> Permissions { get; set; } = new();
+    }
+
     public class SwitchFirmDto
     {
         public long UserId { get; set; }

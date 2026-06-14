@@ -129,7 +129,7 @@ builder.Services.AddAuthorization(options =>
         policy.Requirements.Add(new SubscriptionRequirement("any")));
 });
 
-builder.Services.AddSingleton<IAuthorizationHandler, SubscriptionHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, SubscriptionHandler>();
 builder.Services.AddScoped<IFeatureAccessService, FeatureAccessService>();
 
 // Services
@@ -142,6 +142,8 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IAISummaryService, AISummaryService>();
 builder.Services.AddSingleton<IJwtHelper, JwtHelper>();
+builder.Services.AddScoped<IAuthorizationHandler, SubscriptionHandler>();
+
 
 // Module Services
 builder.Services.AddScoped<IDashboardService, DashboardService>();

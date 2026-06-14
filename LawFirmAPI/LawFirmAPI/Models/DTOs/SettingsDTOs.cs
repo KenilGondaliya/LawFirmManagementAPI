@@ -6,16 +6,16 @@ using System.Collections.Generic;
 namespace LawFirmAPI.Models.DTOs
 {
     // ==================== Profile DTOs ====================
-    
+
     public class UpdateProfileDto
     {
         public string? FirstName { get; set; }
         public string? LastName { get; set; }
         public string? PhoneNumber { get; set; }
     }
-    
+
     // ==================== Team Management DTOs ====================
-    
+
     public class InviteUserDto
     {
         public string Email { get; set; } = string.Empty;
@@ -23,7 +23,7 @@ namespace LawFirmAPI.Models.DTOs
         public string LastName { get; set; } = string.Empty;
         public string Role { get; set; } = "STAFF";
     }
-    
+
     public class TeamMemberDto
     {
         public long Id { get; set; }
@@ -38,14 +38,14 @@ namespace LawFirmAPI.Models.DTOs
         public DateTime? InvitedAt { get; set; }
         public string? ProfileImageUrl { get; set; }
     }
-    
+
     public class RoleDto
     {
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public List<string> Permissions { get; set; } = new();
     }
-    
+
     public class InviteResponseDto
     {
         public long UserId { get; set; }
@@ -54,9 +54,9 @@ namespace LawFirmAPI.Models.DTOs
         public string Role { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
     }
-    
+
     // ==================== Firm Settings DTOs ====================
-    
+
     public class FirmSettingsDto
     {
         public long Id { get; set; }
@@ -78,8 +78,8 @@ namespace LawFirmAPI.Models.DTOs
         public string DateFormat { get; set; } = "MM/DD/YYYY";
         public string Currency { get; set; } = "USD";
     }
-    
-    public class UpdateFirmSettingsDto
+
+     public class UpdateFirmSettingsDto
     {
         public string? Name { get; set; }
         public string? LegalName { get; set; }
@@ -98,23 +98,23 @@ namespace LawFirmAPI.Models.DTOs
         public string? DateFormat { get; set; }
         public string? Currency { get; set; }
     }
-    
+
     public class BrandingDto
     {
         public string? LogoUrl { get; set; }
         public string? PrimaryColor { get; set; }
         public string? SecondaryColor { get; set; }
     }
-    
+
     public class UpdateBrandingDto
     {
         public IFormFile? Logo { get; set; }
         public string? PrimaryColor { get; set; }
         public string? SecondaryColor { get; set; }
     }
-    
+
     // ==================== Plan & Billing DTOs ====================
-    
+
     public class CurrentPlanDto
     {
         public string PlanName { get; set; } = string.Empty;
@@ -125,9 +125,9 @@ namespace LawFirmAPI.Models.DTOs
         public DateTime? NextBillingDate { get; set; }
         public DateTime? EndDate { get; set; }
         public bool AutoRenew { get; set; }
-        public List<string> Features { get; set; } = new();
+        public List<string> FeaturesList { get; set; } = new(); // Changed from Features
     }
-    
+
     public class PlanDto
     {
         public long Id { get; set; }
@@ -138,10 +138,12 @@ namespace LawFirmAPI.Models.DTOs
         public decimal PriceYearly { get; set; }
         public int MaxUsers { get; set; }
         public long MaxStorageMb { get; set; }
-        public List<string> Features { get; set; } = new();
+        public List<string> FeaturesList { get; set; } = new(); // Changed from Features
         public bool IsPopular { get; set; }
     }
-    
+
+
+
     public class PaymentMethodDto
     {
         public long Id { get; set; }
@@ -152,7 +154,7 @@ namespace LawFirmAPI.Models.DTOs
         public string CardholderName { get; set; } = string.Empty;
         public bool IsDefault { get; set; }
     }
-    
+
     public class AddPaymentMethodDto
     {
         public string Type { get; set; } = "card";
@@ -162,9 +164,9 @@ namespace LawFirmAPI.Models.DTOs
         public string CardholderName { get; set; } = string.Empty;
         public bool IsDefault { get; set; }
     }
-    
+
     // ==================== User Preferences DTOs ====================
-    
+
     public class UserPreferencesDto
     {
         public string Theme { get; set; } = "light";
@@ -175,7 +177,7 @@ namespace LawFirmAPI.Models.DTOs
         public string CalendarView { get; set; } = "month";
         public object? DashboardLayout { get; set; }
     }
-    
+
     public class UpdateUserPreferencesDto
     {
         public string? Theme { get; set; }
@@ -186,9 +188,9 @@ namespace LawFirmAPI.Models.DTOs
         public string? CalendarView { get; set; }
         public object? DashboardLayout { get; set; }
     }
-    
+
     // ==================== Audit Logs DTOs ====================
-    
+
     public class AuditLogsResponseDto
     {
         public List<AuditLogDto> Logs { get; set; } = new();
@@ -197,7 +199,7 @@ namespace LawFirmAPI.Models.DTOs
         public int PageSize { get; set; }
         public int TotalPages { get; set; }
     }
-    
+
     public class AuditLogDto
     {
         public long Id { get; set; }
@@ -210,9 +212,9 @@ namespace LawFirmAPI.Models.DTOs
         public string? IpAddress { get; set; }
         public DateTime CreatedAt { get; set; }
     }
-    
+
     // ==================== Usage Statistics DTOs ====================
-    
+
     public class UsageStatisticsDto
     {
         public UserUsageDto Users { get; set; } = new();
@@ -220,7 +222,7 @@ namespace LawFirmAPI.Models.DTOs
         public ContactUsageDto Contacts { get; set; } = new();
         public StorageUsageDto Storage { get; set; } = new();
     }
-    
+
     public class UserUsageDto
     {
         public int Current { get; set; }
@@ -228,7 +230,7 @@ namespace LawFirmAPI.Models.DTOs
         public int Remaining { get; set; }
         public double Percentage { get; set; }
     }
-    
+
     public class MatterUsageDto
     {
         public int Current { get; set; }
@@ -236,7 +238,7 @@ namespace LawFirmAPI.Models.DTOs
         public int Remaining { get; set; }
         public double Percentage { get; set; }
     }
-    
+
     public class ContactUsageDto
     {
         public int Current { get; set; }
@@ -244,7 +246,7 @@ namespace LawFirmAPI.Models.DTOs
         public int Remaining { get; set; }
         public double Percentage { get; set; }
     }
-    
+
     public class StorageUsageDto
     {
         public long CurrentMb { get; set; }

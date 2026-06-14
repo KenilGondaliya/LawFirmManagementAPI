@@ -44,10 +44,11 @@ import { BillsList } from "./pages/Billing/BillsList";
 import { EditContact } from "./pages/Contacts/EditContact";
 import { AcceptInvite } from "./pages/Auth/AcceptInvite";
 import { PricingPlans } from "./pages/Pricing/PricingPlans";
-import { BillingSettings } from "./pages/Settings/BillingSettings";
 import { Profile } from "./pages/Settings/Profile";
 import { Team } from "./pages/Settings/Team";
 import { FirmSettings } from "./pages/Settings/FirmSettings";
+import { BillingSettings } from "./pages/Settings/BillingSettings";
+import { Preferences } from "./pages/Settings/Preferences";
 
 function App() {
   const { initializeAuth, isLoading } = useAuthStore();
@@ -141,6 +142,7 @@ function App() {
           <Route path="/settings/team" element={<Team />} />
           <Route path="/settings/firm" element={<FirmSettings />} />
           <Route path="/settings/billing" element={<BillingSettings />} />
+          <Route path="/settings/preferences" element={<Preferences />} />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Route>
 

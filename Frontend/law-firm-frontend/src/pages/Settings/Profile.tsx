@@ -1,18 +1,19 @@
-// src/pages/Settings/Profile.tsx
+// src/pages/Settings/Profile.tsx - Fixed version
+
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { settingsService } from '../../services/settings.service';
 import { Button } from '../../components/UI/Button';
 import { Input } from '../../components/UI/Input';
 import { Card } from '../../components/UI/Card';
-import { UserIcon, MailIcon, PhoneIcon, CameraIcon, TrashIcon } from 'lucide-react';
+import { UserIcon, MailIcon, PhoneIcon, CameraIcon, TrashIcon, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const Profile: React.FC = () => {
-  const { user, updateProfile } = useAuthStore();
+  const { user, updateProfile, setUser } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -26,7 +27,8 @@ export const Profile: React.FC = () => {
         lastName: user.lastName || '',
         phoneNumber: user.phoneNumber || '',
       });
-      setAvatarPreview(user.profileImageUrl || null);
+      // ✅ Set avatar URL from user data
+      setAvatarUrl(user.profileImageUrl || null);
     }
   }, [user]);
 
@@ -45,40 +47,68 @@ export const Profile: React.FC = () => {
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAvatarFile(file);
-      const preview = URL.createObjectURL(file);
-      setAvatarPreview(preview);
+    if (!file) return;
+    
+    // ✅ Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    
+    // ✅ Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+    
+    setIsUploading(true);
+    try {
+      // ✅ Show preview immediately
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarUrl(previewUrl);
       
-      // Upload immediately
-      setIsLoading(true);
-      try {
-        await settingsService.uploadAvatar(file);
-        toast.success('Avatar updated successfully');
-        // Refresh user data
-        const updatedProfile = await settingsService.getProfile();
-        useAuthStore.setState({ user: updatedProfile });
-      } catch (error) {
-        toast.error('Failed to upload avatar');
-      } finally {
-        setIsLoading(false);
+      // ✅ Upload to server
+      const uploadedUrl = await settingsService.uploadAvatar(file);
+      
+      // ✅ Update with server URL
+      setAvatarUrl(uploadedUrl);
+      
+      // ✅ Update user in store
+      if (user) {
+        const updatedUser = { ...user, profileImageUrl: uploadedUrl };
+        setUser(updatedUser);
       }
+      
+      toast.success('Avatar updated successfully');
+    } catch (error: any) {
+      console.error('Upload failed:', error);
+      toast.error(error.response?.data?.message || 'Failed to upload avatar');
+      // ✅ Revert preview on error
+      setAvatarUrl(user?.profileImageUrl || null);
+    } finally {
+      setIsUploading(false);
     }
   };
 
   const handleRemoveAvatar = async () => {
-    setIsLoading(true);
+    if (!window.confirm('Are you sure you want to remove your profile picture?')) return;
+    
+    setIsUploading(true);
     try {
       await settingsService.removeAvatar();
-      setAvatarPreview(null);
-      setAvatarFile(null);
+      setAvatarUrl(null);
+      
+      // ✅ Update user in store
+      if (user) {
+        const updatedUser = { ...user, profileImageUrl: undefined };
+        setUser(updatedUser);
+      }
+      
       toast.success('Avatar removed successfully');
-      const updatedProfile = await settingsService.getProfile();
-      useAuthStore.setState({ user: updatedProfile });
     } catch (error) {
       toast.error('Failed to remove avatar');
     } finally {
-      setIsLoading(false);
+      setIsUploading(false);
     }
   };
 
@@ -95,24 +125,49 @@ export const Profile: React.FC = () => {
         <div className="flex items-center gap-6">
           <div className="relative">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center overflow-hidden">
-              {avatarPreview ? (
-                <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+              {isUploading ? (
+                <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+              ) : avatarUrl ? (
+                <img 
+                  src={avatarUrl} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    // ✅ Handle image load error
+                    console.error('Failed to load image:', avatarUrl);
+                    e.currentTarget.style.display = 'none';
+                    setAvatarUrl(null);
+                  }}
+                />
               ) : (
                 <UserIcon className="w-12 h-12 text-primary-600" />
               )}
             </div>
-            <label className="absolute -bottom-2 -right-2 p-1 bg-white rounded-full shadow-md cursor-pointer hover:bg-gray-50">
+            <label className="absolute -bottom-2 -right-2 p-1.5 bg-white rounded-full shadow-md cursor-pointer hover:bg-gray-50 transition-colors">
               <CameraIcon className="w-4 h-4 text-gray-600" />
-              <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+              <input 
+                type="file" 
+                accept="image/jpeg,image/png,image/jpg,image/gif" 
+                onChange={handleAvatarChange} 
+                disabled={isUploading}
+                className="hidden" 
+              />
             </label>
           </div>
-          {avatarPreview && (
-            <Button variant="outline" onClick={handleRemoveAvatar} disabled={isLoading}>
+          {avatarUrl && (
+            <Button 
+              variant="outline" 
+              onClick={handleRemoveAvatar} 
+              disabled={isUploading}
+            >
               <TrashIcon className="w-4 h-4 mr-2" />
               Remove
             </Button>
           )}
         </div>
+        <p className="text-xs text-gray-500 mt-4">
+          Supported formats: JPEG, PNG, GIF. Max size: 5MB.
+        </p>
       </Card>
 
       {/* Profile Form */}
