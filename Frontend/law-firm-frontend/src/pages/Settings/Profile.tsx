@@ -1,4 +1,4 @@
-// src/pages/Settings/Profile.tsx - Fixed version
+// src/pages/Settings/Profile.tsx - Fixed version with better image handling
 
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
@@ -14,6 +14,7 @@ export const Profile: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [imageError, setImageError] = useState(false);
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -27,8 +28,20 @@ export const Profile: React.FC = () => {
         lastName: user.lastName || '',
         phoneNumber: user.phoneNumber || '',
       });
+      
       // ✅ Set avatar URL from user data
-      setAvatarUrl(user.profileImageUrl || null);
+      if (user.profileImageUrl) {
+        // If URL is relative, convert to absolute
+        let url = user.profileImageUrl;
+        if (url.startsWith('/')) {
+          const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5165';
+          url = `${baseUrl}${url}`;
+        }
+        setAvatarUrl(url);
+      } else {
+        setAvatarUrl(null);
+      }
+      setImageError(false);
     }
   }, [user]);
 
@@ -66,6 +79,7 @@ export const Profile: React.FC = () => {
       // ✅ Show preview immediately
       const previewUrl = URL.createObjectURL(file);
       setAvatarUrl(previewUrl);
+      setImageError(false);
       
       // ✅ Upload to server
       const uploadedUrl = await settingsService.uploadAvatar(file);
@@ -97,6 +111,7 @@ export const Profile: React.FC = () => {
     try {
       await settingsService.removeAvatar();
       setAvatarUrl(null);
+      setImageError(false);
       
       // ✅ Update user in store
       if (user) {
@@ -110,6 +125,12 @@ export const Profile: React.FC = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleImageError = () => {
+    console.error('Failed to load image:', avatarUrl);
+    setImageError(true);
+    setAvatarUrl(null);
   };
 
   return (
@@ -127,17 +148,12 @@ export const Profile: React.FC = () => {
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center overflow-hidden">
               {isUploading ? (
                 <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
-              ) : avatarUrl ? (
+              ) : avatarUrl && !imageError ? (
                 <img 
                   src={avatarUrl} 
                   alt="Avatar" 
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    // ✅ Handle image load error
-                    console.error('Failed to load image:', avatarUrl);
-                    e.currentTarget.style.display = 'none';
-                    setAvatarUrl(null);
-                  }}
+                  onError={handleImageError}
                 />
               ) : (
                 <UserIcon className="w-12 h-12 text-primary-600" />
@@ -154,7 +170,7 @@ export const Profile: React.FC = () => {
               />
             </label>
           </div>
-          {avatarUrl && (
+          {avatarUrl && !imageError && (
             <Button 
               variant="outline" 
               onClick={handleRemoveAvatar} 

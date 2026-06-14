@@ -1,8 +1,11 @@
+// Program.cs - Fixed static files configuration
+
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using Microsoft.Extensions.FileProviders;
 using LawFirmAPI.Data;
 using LawFirmAPI.Services;
 using LawFirmAPI.Helpers;
@@ -15,6 +18,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
+builder.Services.AddHttpContextAccessor();
 // Add services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -77,7 +81,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         {
             OnMessageReceived = context =>
             {
-                // Allow token from query string for SignalR or special cases
                 var accessToken = context.Request.Query["access_token"];
                 if (!string.IsNullOrEmpty(accessToken))
                 {
@@ -87,7 +90,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             }
         };
     });
-
 
 builder.Services.AddAuthorization(options =>
 {
@@ -142,8 +144,6 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IAISummaryService, AISummaryService>();
 builder.Services.AddSingleton<IJwtHelper, JwtHelper>();
-builder.Services.AddScoped<IAuthorizationHandler, SubscriptionHandler>();
-
 
 // Module Services
 builder.Services.AddScoped<IDashboardService, DashboardService>();
@@ -173,6 +173,19 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// ✅ Create Uploads directory if it doesn't exist
+var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+var avatarsPath = Path.Combine(uploadsPath, "avatars");
+
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+}
+if (!Directory.Exists(avatarsPath))
+{
+    Directory.CreateDirectory(avatarsPath);
+}
+
 // Configure pipeline
 if (app.Environment.IsDevelopment())
 {
@@ -181,15 +194,33 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseCors("AllowReactApp");
-
 app.UseAuthentication();
 
+// ✅ Static files middleware - ORDER MATTERS! Put this BEFORE authentication checks for images
+app.UseStaticFiles(); // For wwwroot folder
+
+// ✅ Serve files from Uploads folder with proper configuration
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(uploadsPath),
+    RequestPath = "/uploads",
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "application/octet-stream"
+});
+
+// Custom firm context middleware
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.ToString().ToLower();
     var method = context.Request.Method;
+    
+    // ✅ Allow access to uploaded images without authentication
+    if (path.StartsWith("/uploads/"))
+    {
+        await next();
+        return;
+    }
     
     var publicPaths = new[]
     {
@@ -201,6 +232,7 @@ app.Use(async (context, next) =>
         "/api/v1/auth/verify-email",
         "/api/v1/auth/resend-verification",
         "/api/v1/auth/accept-invite",
+        "/api/v1/subscription-plans",
         "/swagger",
         "/swagger/index.html"
     };
@@ -244,7 +276,6 @@ app.Use(async (context, next) =>
 });
 
 app.UseAuthorization();
-
 app.MapControllers();
 
 using (var scope = app.Services.CreateScope())

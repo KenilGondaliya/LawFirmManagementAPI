@@ -17,12 +17,14 @@ namespace LawFirmAPI.Services
         private readonly ApplicationDbContext _context;
         private readonly IFileService _fileService;
         private readonly IEmailService _emailService;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public SettingsService(ApplicationDbContext context, IFileService fileService, IEmailService emailService)
+        public SettingsService(ApplicationDbContext context, IFileService fileService, IEmailService emailService, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _fileService = fileService;
             _emailService = emailService;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         // ==================== Profile Settings ====================
@@ -65,13 +67,20 @@ namespace LawFirmAPI.Services
         public async Task<string> UploadAvatar(long userId, long firmId, IFormFile file)
         {
             var user = await _context.Users.FindAsync(userId);
-            if (user == null) throw new KeyNotFoundException("User not found");
+            if (user == null)
+                throw new KeyNotFoundException("User not found");
 
             if (!string.IsNullOrEmpty(user.ProfileImageUrl))
+            {
                 _fileService.DeleteFile(user.ProfileImageUrl);
+            }
 
-            var filePath = await _fileService.SaveFile(file, "avatars");
-            var avatarUrl = $"/uploads/avatars/{System.IO.Path.GetFileName(filePath)}";
+            var relativePath = await _fileService.SaveFile(file, "avatars");
+
+            // ✅ Build absolute URL
+            var request = _httpContextAccessor.HttpContext?.Request;
+            var baseUrl = $"{request?.Scheme}://{request?.Host}";
+            var avatarUrl = $"{baseUrl}{relativePath}";
 
             user.ProfileImageUrl = avatarUrl;
             user.UpdatedAt = DateTime.UtcNow;
@@ -79,6 +88,7 @@ namespace LawFirmAPI.Services
 
             return avatarUrl;
         }
+
 
         public async Task<bool> RemoveAvatar(long userId, long firmId)
         {
@@ -389,7 +399,7 @@ namespace LawFirmAPI.Services
                 .ToListAsync();
 
             var result = new List<PlanDto>();
-            
+
             foreach (var plan in plans)
             {
                 result.Add(new PlanDto
@@ -406,7 +416,7 @@ namespace LawFirmAPI.Services
                     IsPopular = plan.Code == "pro"
                 });
             }
-            
+
             return result;
         }
 
@@ -415,30 +425,30 @@ namespace LawFirmAPI.Services
         {
             return planCode?.ToLower() switch
             {
-                "basic" => new List<string> { 
-                    "Up to 5 users", 
-                    "1GB storage", 
-                    "Basic support", 
-                    "Core features", 
-                    "Email support" 
+                "basic" => new List<string> {
+                    "Up to 5 users",
+                    "1GB storage",
+                    "Basic support",
+                    "Core features",
+                    "Email support"
                 },
-                "pro" => new List<string> { 
-                    "Up to 50 users", 
-                    "10GB storage", 
-                    "Priority support", 
-                    "Advanced features", 
-                    "Analytics dashboard", 
-                    "API access", 
-                    "Email & Chat support" 
+                "pro" => new List<string> {
+                    "Up to 50 users",
+                    "10GB storage",
+                    "Priority support",
+                    "Advanced features",
+                    "Analytics dashboard",
+                    "API access",
+                    "Email & Chat support"
                 },
-                "enterprise" => new List<string> { 
-                    "Unlimited users", 
-                    "100GB storage", 
-                    "24/7 phone support", 
-                    "Custom features", 
-                    "Dedicated account manager", 
-                    "SLA guarantee", 
-                    "On-premise option" 
+                "enterprise" => new List<string> {
+                    "Unlimited users",
+                    "100GB storage",
+                    "24/7 phone support",
+                    "Custom features",
+                    "Dedicated account manager",
+                    "SLA guarantee",
+                    "On-premise option"
                 },
                 _ => new List<string> { "Basic features", "Email support" }
             };
