@@ -1,5 +1,3 @@
-// Services/SettingsService.cs - ULTIMATE FIX - NO JSON DESERIALIZATION
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,7 +26,6 @@ namespace LawFirmAPI.Services
         }
 
         // ==================== Profile Settings ====================
-
         public async Task<UserProfileDto> GetProfile(long userId, long firmId)
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId && u.IsActive);
@@ -70,16 +67,13 @@ namespace LawFirmAPI.Services
             if (user == null)
                 throw new KeyNotFoundException("User not found");
 
-            // Delete old avatar if exists
             if (!string.IsNullOrEmpty(user.ProfileImageUrl))
             {
                 ((FileService)_fileService).DeleteFile(user.ProfileImageUrl);
             }
 
-            // Save new file (returns relative path)
             var relativePath = await ((FileService)_fileService).SaveFile(file, "avatars");
 
-            // ✅ Build absolute URL using the request context
             var request = _httpContextAccessor.HttpContext?.Request;
             var baseUrl = $"{request?.Scheme}://{request?.Host}";
             var absoluteUrl = $"{baseUrl}{relativePath}";
@@ -87,7 +81,6 @@ namespace LawFirmAPI.Services
             Console.WriteLine($"Relative path: {relativePath}");
             Console.WriteLine($"Absolute URL: {absoluteUrl}");
 
-            // Store absolute URL in database
             user.ProfileImageUrl = absoluteUrl;
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
@@ -102,7 +95,6 @@ namespace LawFirmAPI.Services
 
             if (!string.IsNullOrEmpty(user.ProfileImageUrl))
             {
-                // Cast to concrete FileService to avoid ambiguous method resolution
                 ((FileService)_fileService).DeleteFile(user.ProfileImageUrl);
                 user.ProfileImageUrl = null;
                 await _context.SaveChangesAsync();
@@ -426,7 +418,6 @@ namespace LawFirmAPI.Services
             return result;
         }
 
-        // ✅ COMPLETELY AVOID JSON DESERIALIZATION - Use hardcoded features based on plan code
         private List<string> GetFeaturesByPlanCode(string planCode)
         {
             return planCode?.ToLower() switch

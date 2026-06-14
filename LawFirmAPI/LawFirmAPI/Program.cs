@@ -1,5 +1,3 @@
-// Program.cs - Complete Fixed Version
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -93,7 +91,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization(options =>
 {
-    // Role-based policies
     options.AddPolicy("AdminOnly", policy => 
         policy.RequireRole("OWNER", "ADMIN"));
     
@@ -103,7 +100,6 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("StaffOnly", policy => 
         policy.RequireRole("OWNER", "ADMIN", "MANAGER", "STAFF"));
     
-    // Permission-based policies
     options.AddPolicy("can_view_contacts", policy => 
         policy.RequireAssertion(context =>
             context.User.HasClaim(c => c.Type == "permission" && c.Value == "can_view_contacts") ||
@@ -120,7 +116,6 @@ builder.Services.AddAuthorization(options =>
         policy.RequireAssertion(context =>
             context.User.IsInRole("OWNER") || context.User.IsInRole("ADMIN")));
     
-    // Subscription-based policies
     options.AddPolicy("ProPlan", policy => 
         policy.Requirements.Add(new SubscriptionRequirement("pro")));
     
@@ -173,7 +168,6 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// ✅ Create Uploads directory if it doesn't exist
 var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
 var avatarsPath = Path.Combine(uploadsPath, "avatars");
 
@@ -188,7 +182,6 @@ if (!Directory.Exists(avatarsPath))
     Console.WriteLine($"Created avatars directory: {avatarsPath}");
 }
 
-// Configure pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -198,10 +191,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
 
-// ✅ Static files middleware - MUST come before authentication
-app.UseStaticFiles(); // For wwwroot folder
+app.UseStaticFiles(); 
 
-// ✅ Serve files from Uploads folder
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsPath),
@@ -209,19 +200,16 @@ app.UseStaticFiles(new StaticFileOptions
     ServeUnknownFileTypes = true,
     OnPrepareResponse = ctx =>
     {
-        // Allow caching for images
         ctx.Context.Response.Headers.Append("Cache-Control", "public, max-age=86400");
     }
 });
 
 app.UseAuthentication();
 
-// Custom firm context middleware
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path.ToString().ToLower();
     
-    // ✅ Allow access to uploaded images without authentication
     if (path.StartsWith("/uploads/"))
     {
         await next();
