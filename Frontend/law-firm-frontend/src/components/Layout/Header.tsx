@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { FirmSwitcher } from './FirmSwitcher';
@@ -17,10 +17,28 @@ interface HeaderProps {
   title?: string;
 }
 
+const getAbsoluteImageUrl = (url: string | undefined): string | null => {
+  if (!url) return null;
+  
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  if (url.startsWith('/')) {
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5165';
+    return `${baseUrl}${url}`;
+  }
+  
+  return url;
+};
+
 export const Header: React.FC<HeaderProps> = ({ title }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // console.log('Header rendered with user:', user);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -33,6 +51,13 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
       setIsLoggingOut(false);
     }
   };
+
+   useEffect(() => {
+        if (user) {        
+          const absoluteUrl = getAbsoluteImageUrl(user.profileImageUrl);
+          setAvatarUrl(absoluteUrl);
+        }
+      }, [user]);    
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
@@ -68,17 +93,17 @@ export const Header: React.FC<HeaderProps> = ({ title }) => {
           {/* User Menu */}
           <Menu as="div" className="relative">
             <Menu.Button className="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-              {user?.profileImageUrl ? (
-                <img
-                  src={user.profileImageUrl}
-                  alt={user.fullName}
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 flex items-center justify-center text-white font-semibold">
-                  {user?.firstName?.[0] || user?.username?.[0] || 'U'}
-                </div>
-              )}
+              {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={user?.fullName}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
+                {user?.firstName?.[0] || user?.username?.[0] || 'U'}
+              </div>
+            )}
               <div className="hidden sm:block text-left">
                 <p className="text-sm font-medium text-gray-700">
                   {user?.fullName || user?.username}

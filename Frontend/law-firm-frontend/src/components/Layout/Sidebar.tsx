@@ -1,6 +1,6 @@
 // src/components/Layout/Sidebar.tsx - Ensure it has proper width
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import {
@@ -19,12 +19,29 @@ import {
 } from '@heroicons/react/24/outline';
 import logoUrl from '../assets/logo_white-1.webp';
 
+const getAbsoluteImageUrl = (url: string | undefined): string | null => {
+  if (!url) return null;
+  
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  if (url.startsWith('/')) {
+    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5165';
+    return `${baseUrl}${url}`;
+  }
+  
+  return url;
+};
+
 export const Sidebar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useAuthStore();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -37,6 +54,13 @@ export const Sidebar: React.FC = () => {
       setIsLoggingOut(false);
     }
   };
+
+   useEffect(() => {
+      if (user) {        
+        const absoluteUrl = getAbsoluteImageUrl(user.profileImageUrl);
+        setAvatarUrl(absoluteUrl);
+      }
+    }, [user]);    
 
   const menuItems = [
     { path: '/dashboard', icon: HomeIcon, label: 'Dashboard' },
@@ -107,10 +131,10 @@ export const Sidebar: React.FC = () => {
       <div className="p-3 border-t border-gray-800">
         {!isCollapsed && (
           <div className="flex items-center gap-3 mb-3 px-2">
-            {user?.profileImageUrl ? (
+            {avatarUrl ? (
               <img
-                src={user.profileImageUrl}
-                alt={user.fullName}
+                src={avatarUrl}
+                alt={user?.fullName}
                 className="w-8 h-8 rounded-full object-cover"
               />
             ) : (
@@ -118,6 +142,15 @@ export const Sidebar: React.FC = () => {
                 {user?.firstName?.[0] || user?.username?.[0] || 'U'}
               </div>
             )}
+
+            {/* {user? (
+               <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
+                {user?.firstName?.[0] || user?.username?.[0] || 'U'}
+              </div>
+            ) : (
+              <div></div>
+            )} */}
+
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white truncate">
                 {user?.fullName || user?.username}
