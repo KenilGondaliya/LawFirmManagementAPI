@@ -142,4 +142,45 @@ namespace LawFirmAPI.Models.DTOs
         public string? PreviewImage { get; set; }
         public bool IsPublic { get; set; } = false;
     }
+
+    public class AddCommentDto
+    {
+        public string Comment { get; set; } = string.Empty;
+    }
+
+
+    public class SharedDocumentDto
+    {
+        public long Id { get; set; }
+        public long DocumentId { get; set; }
+        public string DocumentTitle { get; set; } = string.Empty;
+        public string DocumentFileName { get; set; } = string.Empty;
+        public string SharedBy { get; set; } = string.Empty;
+        public string SharedByEmail { get; set; } = string.Empty;
+        public string SharedWithEmail { get; set; } = string.Empty;
+        public string Permission { get; set; } = "VIEW";
+        public string ShareToken { get; set; } = string.Empty;
+        public DateTime SharedAt { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    public class SharedDocumentDownloadDto
+    {
+        public byte[] FileBytes { get; set; } = Array.Empty<byte>();
+        public string FileName { get; set; } = string.Empty;
+        public string MimeType { get; set; } = string.Empty;
+    }
+
+    public class SharedDocumentDetailsDto
+    {
+        public long DocumentId { get; set; }
+        public string DocumentTitle { get; set; } = string.Empty;
+        public string DocumentFileName { get; set; } = string.Empty;
+        public string SharedBy { get; set; } = string.Empty;
+        public string Permission { get; set; } = string.Empty;
+        public DateTime? ExpiresAt { get; set; }
+        public bool IsActive { get; set; }
+    }
+
 }

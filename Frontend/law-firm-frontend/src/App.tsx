@@ -49,6 +49,9 @@ import { Team } from "./pages/Settings/Team";
 import { FirmSettings } from "./pages/Settings/FirmSettings";
 import { BillingSettings } from "./pages/Settings/BillingSettings";
 import { Preferences } from "./pages/Settings/Preferences";
+import { SharedDocuments } from './pages/Documents/SharedDocuments';
+import { SharedByMe } from './pages/Documents/SharedByMe';
+
 
 function App() {
   const { initializeAuth, isLoading } = useAuthStore();
@@ -132,6 +135,8 @@ function App() {
           <Route path="/documents" element={<DocumentsList />} />
           <Route path="/documents/:id" element={<DocumentDetail />} />
           <Route path="/communications" element={<CommunicationsList />} />
+          <Route path="/documents/shared" element={<SharedDocuments />} />
+          <Route path="/documents/shared-by-me" element={<SharedByMe />} />
           <Route path="/communications/threads/:id" element={<ThreadDetail />} />
           <Route path="/communications/templates" element={<EmailTemplates />} />
           <Route path="/billing" element={<BillsList />} />

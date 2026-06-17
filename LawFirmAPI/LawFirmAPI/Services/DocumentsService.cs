@@ -1,9 +1,5 @@
-// Services/DocumentsService.cs
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using LawFirmAPI.Data;
 using LawFirmAPI.Models.Entities;
 using LawFirmAPI.Models.DTOs;
@@ -12,25 +8,45 @@ namespace LawFirmAPI.Services
 {
     public interface IDocumentsService
     {
+        // Basic Document Operations
         Task<List<DocumentDto>> GetAllDocuments(long firmId, long? matterId, long? folderId, string? search);
         Task<DocumentDto?> GetDocumentById(long id, long firmId);
         Task<DocumentDto> UploadDocument(long firmId, long userId, UploadDocumentDto uploadDto);
         Task<bool> DeleteDocument(long id, long firmId);
         Task<byte[]> DownloadDocument(long id, long firmId);
         Task<DocumentDto> UpdateDocument(long id, long firmId, UpdateDocumentDto updateDto);
+        
+        // Document Versions
         Task<DocumentVersionDto> CreateVersion(long documentId, long firmId, long userId, IFormFile file, string? changeSummary);
         Task<List<DocumentVersionDto>> GetDocumentVersions(long documentId, long firmId);
+        
+        // Document Sharing
         Task<DocumentShareDto> ShareDocument(long documentId, long firmId, long userId, long? sharedWithUserId, string? sharedWithEmail, string permission, int? expiresInDays);
         Task<bool> RevokeShare(long shareId, long firmId);
+        Task<List<SharedDocumentDto>> GetSharedWithMe(long userId, long firmId);
+        Task<List<SharedDocumentDto>> GetSharedByMe(long userId, long firmId);
+        Task<SharedDocumentDownloadDto?> DownloadSharedDocument(string shareToken);
+        Task<SharedDocumentDetailsDto?> GetSharedDocumentDetails(string shareToken);
+        
+        // Document Comments
         Task<DocumentCommentDto> AddComment(long documentId, long firmId, long userId, string comment);
         Task<bool> DeleteComment(long commentId, long firmId);
+        Task<List<DocumentCommentDto>> GetDocumentComments(long documentId, long firmId);
+        
+        // AI Features
         Task<DocumentSummaryDto> GetDocumentSummary(long documentId, long firmId);
         Task<DocumentSummaryDto> GenerateSummary(long documentId, long firmId);
+        
+        // Document Types
         Task<List<DocumentTypeDto>> GetDocumentTypes(long firmId);
         Task<DocumentTypeDto> CreateDocumentType(long firmId, CreateDocumentTypeDto createDto);
+        
+        // Folders
         Task<List<FolderDto>> GetFolders(long firmId, long? parentFolderId);
         Task<FolderDto> CreateFolder(long firmId, long userId, CreateFolderDto createDto);
         Task<bool> MoveDocument(long documentId, long firmId, long? folderId);
+        
+        // Templates
         Task<List<TemplateDto>> GetTemplates(long firmId, string? category);
         Task<TemplateDto> CreateTemplate(long firmId, long userId, CreateTemplateDto createDto);
         Task<bool> DeleteTemplate(long templateId, long firmId);
@@ -48,6 +64,8 @@ namespace LawFirmAPI.Services
             _fileService = fileService;
             _aiSummaryService = aiSummaryService;
         }
+
+        // ==================== Basic Document Operations ====================
 
         public async Task<List<DocumentDto>> GetAllDocuments(long firmId, long? matterId, long? folderId, string? search)
         {
@@ -73,9 +91,8 @@ namespace LawFirmAPI.Services
 
             var documents = await query
                 .OrderByDescending(d => d.UploadedAt)
-                .ToListAsync();  // ✅ FIRST: Get data from database
+                .ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return documents.Select(d => MapToDto(d)).ToList();
         }
 
@@ -90,7 +107,6 @@ namespace LawFirmAPI.Services
             if (document == null)
                 return null;
 
-            // Update last accessed
             document.LastAccessedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
@@ -120,7 +136,8 @@ namespace LawFirmAPI.Services
                 ContactId = uploadDto.ContactId,
                 IsTemplate = uploadDto.IsTemplate,
                 UploadedBy = userId,
-                UploadedAt = DateTime.UtcNow
+                UploadedAt = DateTime.UtcNow,
+                Version = 1
             };
 
             _context.Documents.Add(document);
@@ -180,6 +197,8 @@ namespace LawFirmAPI.Services
             return MapToDto(document);
         }
 
+        // ==================== Document Versions ====================
+
         public async Task<DocumentVersionDto> CreateVersion(long documentId, long firmId, long userId, IFormFile file, string? changeSummary)
         {
             var document = await _context.Documents
@@ -205,7 +224,6 @@ namespace LawFirmAPI.Services
 
             _context.DocumentVersions.Add(version);
 
-            // Update current document
             document.Version = newVersion;
             document.FileName = file.FileName;
             document.FilePath = filePath;
@@ -231,9 +249,8 @@ namespace LawFirmAPI.Services
             var versions = await _context.DocumentVersions
                 .Where(v => v.DocumentId == documentId)
                 .OrderByDescending(v => v.Version)
-                .ToListAsync();  // ✅ FIRST: Get data from database
+                .ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return versions.Select(v => new DocumentVersionDto
             {
                 Id = v.Id,
@@ -244,6 +261,8 @@ namespace LawFirmAPI.Services
                 UploadedAt = v.UploadedAt
             }).ToList();
         }
+
+        // ==================== Document Sharing ====================
 
         public async Task<DocumentShareDto> ShareDocument(long documentId, long firmId, long userId, long? sharedWithUserId, string? sharedWithEmail, string permission, int? expiresInDays)
         {
@@ -259,7 +278,7 @@ namespace LawFirmAPI.Services
                 SharedWithUserId = sharedWithUserId,
                 SharedWithEmail = sharedWithEmail,
                 Permission = permission,
-                ShareToken = Guid.NewGuid().ToString(),
+                ShareToken = Guid.NewGuid().ToString().Replace("-", ""),
                 ExpiresAt = expiresInDays.HasValue ? DateTime.UtcNow.AddDays(expiresInDays.Value) : null,
                 SharedBy = userId,
                 SharedAt = DateTime.UtcNow
@@ -291,6 +310,110 @@ namespace LawFirmAPI.Services
             return true;
         }
 
+        public async Task<List<SharedDocumentDto>> GetSharedWithMe(long userId, long firmId)
+        {
+            var shares = await (from s in _context.DocumentShares
+                                join d in _context.Documents on s.DocumentId equals d.Id
+                                join u in _context.Users on s.SharedBy equals u.Id into users
+                                from sharedByUser in users.DefaultIfEmpty()
+                                where s.SharedWithUserId == userId && d.FirmId == firmId
+                                select new SharedDocumentDto
+                                {
+                                    Id = s.Id,
+                                    DocumentId = s.DocumentId,
+                                    DocumentTitle = d.Title,
+                                    DocumentFileName = d.FileName,
+                                    SharedBy = sharedByUser != null ? $"{sharedByUser.FirstName} {sharedByUser.LastName}".Trim() : "Unknown",
+                                    SharedByEmail = sharedByUser != null ? sharedByUser.Email : string.Empty,
+                                    SharedWithEmail = s.SharedWithEmail ?? string.Empty,
+                                    Permission = s.Permission,
+                                    ShareToken = s.ShareToken,
+                                    SharedAt = s.SharedAt,
+                                    ExpiresAt = s.ExpiresAt,
+                                    IsActive = s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow
+                                })
+                                .ToListAsync();
+
+            return shares;
+        }
+
+        public async Task<List<SharedDocumentDto>> GetSharedByMe(long userId, long firmId)
+        {
+            var shares = await _context.DocumentShares
+                .Include(s => s.Document)
+                .Where(s => s.SharedBy == userId && s.Document != null && s.Document.FirmId == firmId)
+                .Select(s => new SharedDocumentDto
+                {
+                    Id = s.Id,
+                    DocumentId = s.DocumentId,
+                    DocumentTitle = s.Document != null ? s.Document.Title : string.Empty,
+                    DocumentFileName = s.Document != null ? s.Document.FileName : string.Empty,
+                    SharedBy = "Me",
+                    SharedByEmail = string.Empty,
+                    SharedWithEmail = s.SharedWithEmail ?? string.Empty,
+                    Permission = s.Permission,
+                    ShareToken = s.ShareToken,
+                    SharedAt = s.SharedAt,
+                    ExpiresAt = s.ExpiresAt,
+                    IsActive = s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow
+                })
+                .ToListAsync();
+
+            return shares;
+        }
+
+        public async Task<SharedDocumentDownloadDto?> DownloadSharedDocument(string shareToken)
+        {
+            var share = await _context.DocumentShares
+                .Include(s => s.Document)
+                .FirstOrDefaultAsync(s => s.ShareToken == shareToken);
+
+            if (share == null || share.Document == null)
+                return null;
+
+            if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
+                return null;
+
+            var fileBytes = await _fileService.GetFile(share.Document.FilePath);
+            if (fileBytes == null || fileBytes.Length == 0)
+                return null;
+
+            return new SharedDocumentDownloadDto
+            {
+                FileBytes = fileBytes,
+                FileName = share.Document.FileName,
+                MimeType = share.Document.MimeType ?? "application/octet-stream"
+            };
+        }
+
+        public async Task<SharedDocumentDetailsDto?> GetSharedDocumentDetails(string shareToken)
+        {
+            var share = await _context.DocumentShares
+                .Include(s => s.Document)
+                .FirstOrDefaultAsync(s => s.ShareToken == shareToken);
+
+            if (share == null || share.Document == null)
+                return null;
+
+            if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
+                return null;
+
+            var sharedByUser = await _context.Users.FindAsync(share.SharedBy);
+
+            return new SharedDocumentDetailsDto
+            {
+                DocumentId = share.DocumentId,
+                DocumentTitle = share.Document.Title,
+                DocumentFileName = share.Document.FileName,
+                SharedBy = sharedByUser != null ? $"{sharedByUser.FirstName} {sharedByUser.LastName}".Trim() : "Unknown",
+                Permission = share.Permission,
+                ExpiresAt = share.ExpiresAt,
+                IsActive = true
+            };
+        }
+
+        // ==================== Document Comments ====================
+
         public async Task<DocumentCommentDto> AddComment(long documentId, long firmId, long userId, string comment)
         {
             var documentComment = new DocumentComment
@@ -304,11 +427,14 @@ namespace LawFirmAPI.Services
             _context.DocumentComments.Add(documentComment);
             await _context.SaveChangesAsync();
 
+            var user = await _context.Users.FindAsync(userId);
+
             return new DocumentCommentDto
             {
                 Id = documentComment.Id,
                 Comment = documentComment.Comment,
                 UserId = userId,
+                UserName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : "Unknown",
                 CreatedAt = documentComment.CreatedAt
             };
         }
@@ -326,6 +452,27 @@ namespace LawFirmAPI.Services
 
             return true;
         }
+
+        public async Task<List<DocumentCommentDto>> GetDocumentComments(long documentId, long firmId)
+        {
+            var comments = await _context.DocumentComments
+                .Include(c => c.User)
+                .Where(c => c.DocumentId == documentId)
+                .Select(c => new DocumentCommentDto
+                {
+                    Id = c.Id,
+                    Comment = c.Comment,
+                    UserId = c.UserId,
+                    UserName = c.User != null ? $"{c.User.FirstName} {c.User.LastName}".Trim() : "Unknown",
+                    CreatedAt = c.CreatedAt
+                })
+                .OrderByDescending(c => c.CreatedAt)
+                .ToListAsync();
+
+            return comments;
+        }
+
+        // ==================== AI Features ====================
 
         public async Task<DocumentSummaryDto> GetDocumentSummary(long documentId, long firmId)
         {
@@ -386,13 +533,14 @@ namespace LawFirmAPI.Services
             };
         }
 
+        // ==================== Document Types ====================
+
         public async Task<List<DocumentTypeDto>> GetDocumentTypes(long firmId)
         {
             var types = await _context.DocumentTypes
                 .Where(dt => dt.FirmId == firmId)
-                .ToListAsync();  // ✅ FIRST: Get data from database
+                .ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return types.Select(dt => new DocumentTypeDto
             {
                 Id = dt.Id,
@@ -431,6 +579,8 @@ namespace LawFirmAPI.Services
             };
         }
 
+        // ==================== Folders ====================
+
         public async Task<List<FolderDto>> GetFolders(long firmId, long? parentFolderId)
         {
             var query = _context.Folders
@@ -441,9 +591,8 @@ namespace LawFirmAPI.Services
             else
                 query = query.Where(f => f.ParentFolderId == null);
 
-            var folders = await query.ToListAsync();  // ✅ FIRST: Get data from database
+            var folders = await query.OrderBy(f => f.Name).ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return folders.Select(f => new FolderDto
             {
                 Id = f.Id,
@@ -470,7 +619,6 @@ namespace LawFirmAPI.Services
             _context.Folders.Add(folder);
             await _context.SaveChangesAsync();
 
-            // Build path
             folder.Path = await BuildFolderPath(folder.Id);
             await _context.SaveChangesAsync();
 
@@ -499,6 +647,8 @@ namespace LawFirmAPI.Services
             return true;
         }
 
+        // ==================== Templates ====================
+
         public async Task<List<TemplateDto>> GetTemplates(long firmId, string? category)
         {
             var query = _context.DocumentTemplates
@@ -508,9 +658,8 @@ namespace LawFirmAPI.Services
             if (!string.IsNullOrEmpty(category))
                 query = query.Where(t => t.DocumentType != null && t.DocumentType.Category == category);
 
-            var templates = await query.ToListAsync();  // ✅ FIRST: Get data from database
+            var templates = await query.ToListAsync();
 
-            // ✅ SECOND: Map to DTO in memory
             return templates.Select(t => new TemplateDto
             {
                 Id = t.Id,
@@ -572,6 +721,8 @@ namespace LawFirmAPI.Services
             return true;
         }
 
+        // ==================== Helper Methods ====================
+
         private async Task<string> BuildFolderPath(long folderId)
         {
             var path = new List<string>();
@@ -630,7 +781,7 @@ namespace LawFirmAPI.Services
                 CreatedAt = DateTime.UtcNow
             };
             _context.RecentActivities.Add(activity);
-            _context.SaveChanges();
+            _context.SaveChangesAsync();
         }
     }
 }

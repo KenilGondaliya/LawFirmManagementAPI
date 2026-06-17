@@ -1,4 +1,5 @@
-// src/stores/documentStore.ts
+// src/stores/documentStore.ts - Complete with all methods
+
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { 
@@ -6,7 +7,10 @@ import {
   DocumentType, 
   Folder, 
   Template,
-  DocumentSummary 
+  DocumentSummary,
+  DocumentVersion,
+  DocumentComment,
+  DocumentShare
 } from '../types/document.types';
 import { documentService } from '../services/document.service';
 import toast from 'react-hot-toast';
@@ -19,6 +23,9 @@ interface DocumentState {
   folders: Folder[];
   templates: Template[];
   summary: DocumentSummary | null;
+  versions: DocumentVersion[];
+  comments: DocumentComment[];
+  shares: DocumentShare[];
   isLoading: boolean;
   isUploading: boolean;
   
@@ -29,6 +36,7 @@ interface DocumentState {
   updateDocument: (id: number, data: any) => Promise<Document | null>;
   deleteDocument: (id: number) => Promise<boolean>;
   downloadDocument: (id: number) => Promise<void>;
+  moveDocument: (documentId: number, folderId?: number) => Promise<boolean>;
   
   // Document Type Actions
   fetchDocumentTypes: () => Promise<void>;
@@ -37,7 +45,19 @@ interface DocumentState {
   // Folder Actions
   fetchFolders: (parentFolderId?: number) => Promise<void>;
   createFolder: (data: any) => Promise<Folder | null>;
-  moveDocument: (documentId: number, folderId?: number) => Promise<boolean>;
+  
+  // Version Actions
+  fetchVersions: (documentId: number) => Promise<void>;
+  createVersion: (documentId: number, file: File, changeSummary?: string) => Promise<DocumentVersion | null>;
+  
+  // Comment Actions
+  fetchComments: (documentId: number) => Promise<void>;
+  addComment: (documentId: number, comment: string) => Promise<DocumentComment | null>;
+  deleteComment: (commentId: number) => Promise<boolean>;
+  
+  // Share Actions
+  shareDocument: (documentId: number, options: any) => Promise<DocumentShare | null>;
+  revokeShare: (shareId: number) => Promise<boolean>;
   
   // Template Actions
   fetchTemplates: (category?: string) => Promise<void>;
@@ -61,6 +81,9 @@ export const useDocumentStore = create<DocumentState>()(
     folders: [],
     templates: [],
     summary: null,
+    versions: [],
+    comments: [],
+    shares: [],
     isLoading: false,
     isUploading: false,
     
@@ -167,6 +190,19 @@ export const useDocumentStore = create<DocumentState>()(
       }
     },
     
+    moveDocument: async (documentId, folderId) => {
+      try {
+        await documentService.moveDocument(documentId, folderId);
+        await get().fetchDocuments();
+        toast.success('Document moved successfully');
+        return true;
+      } catch (error) {
+        console.error('Failed to move document:', error);
+        toast.error('Failed to move document');
+        return false;
+      }
+    },
+    
     // ==================== Document Type Actions ====================
     
     fetchDocumentTypes: async () => {
@@ -175,6 +211,7 @@ export const useDocumentStore = create<DocumentState>()(
         set({ documentTypes: types });
       } catch (error) {
         console.error('Failed to fetch document types:', error);
+        toast.error('Failed to load document types');
       }
     },
     
@@ -199,6 +236,7 @@ export const useDocumentStore = create<DocumentState>()(
         set({ folders });
       } catch (error) {
         console.error('Failed to fetch folders:', error);
+        toast.error('Failed to load folders');
       }
     },
     
@@ -215,15 +253,102 @@ export const useDocumentStore = create<DocumentState>()(
       }
     },
     
-    moveDocument: async (documentId, folderId) => {
+    // ==================== Version Actions ====================
+    
+    fetchVersions: async (documentId) => {
       try {
-        await documentService.moveDocument(documentId, folderId);
-        await get().fetchDocuments();
-        toast.success('Document moved successfully');
+        const versions = await documentService.getDocumentVersions(documentId);
+        set({ versions });
+      } catch (error) {
+        console.error('Failed to fetch versions:', error);
+        toast.error('Failed to load versions');
+      }
+    },
+    
+    createVersion: async (documentId, file, changeSummary) => {
+      set({ isUploading: true });
+      try {
+        const version = await documentService.createVersion(documentId, file, changeSummary);
+        set((state) => ({ 
+          versions: [...state.versions, version],
+          isUploading: false 
+        }));
+        toast.success('New version created successfully');
+        return version;
+      } catch (error) {
+        console.error('Failed to create version:', error);
+        toast.error('Failed to create version');
+        set({ isUploading: false });
+        return null;
+      }
+    },
+    
+    // ==================== Comment Actions ====================
+    
+    fetchComments: async (documentId) => {
+      try {
+        const comments = await documentService.getDocumentComments(documentId);
+        set({ comments });
+      } catch (error) {
+        console.error('Failed to fetch comments:', error);
+        toast.error('Failed to load comments');
+      }
+    },
+    
+    addComment: async (documentId, comment) => {
+      try {
+        const newComment = await documentService.addComment(documentId, comment);
+        set((state) => ({ comments: [...state.comments, newComment] }));
+        toast.success('Comment added successfully');
+        return newComment;
+      } catch (error) {
+        console.error('Failed to add comment:', error);
+        toast.error('Failed to add comment');
+        return null;
+      }
+    },
+    
+    deleteComment: async (commentId) => {
+      try {
+        await documentService.deleteComment(commentId);
+        set((state) => ({
+          comments: state.comments.filter((c) => c.id !== commentId)
+        }));
+        toast.success('Comment deleted successfully');
         return true;
       } catch (error) {
-        console.error('Failed to move document:', error);
-        toast.error('Failed to move document');
+        console.error('Failed to delete comment:', error);
+        toast.error('Failed to delete comment');
+        return false;
+      }
+    },
+    
+    // ==================== Share Actions ====================
+    
+    shareDocument: async (documentId, options) => {
+      try {
+        const share = await documentService.shareDocument(documentId, options);
+        set((state) => ({ shares: [...state.shares, share] }));
+        toast.success('Document shared successfully');
+        return share;
+      } catch (error) {
+        console.error('Failed to share document:', error);
+        toast.error('Failed to share document');
+        return null;
+      }
+    },
+    
+    revokeShare: async (shareId) => {
+      try {
+        await documentService.revokeShare(shareId);
+        set((state) => ({
+          shares: state.shares.filter((s) => s.id !== shareId)
+        }));
+        toast.success('Share revoked successfully');
+        return true;
+      } catch (error) {
+        console.error('Failed to revoke share:', error);
+        toast.error('Failed to revoke share');
         return false;
       }
     },
@@ -236,6 +361,7 @@ export const useDocumentStore = create<DocumentState>()(
         set({ templates });
       } catch (error) {
         console.error('Failed to fetch templates:', error);
+        toast.error('Failed to load templates');
       }
     },
     
@@ -295,7 +421,7 @@ export const useDocumentStore = create<DocumentState>()(
     // ==================== Utility Actions ====================
     
     clearSelectedDocument: () => {
-      set({ selectedDocument: null, summary: null });
+      set({ selectedDocument: null, summary: null, versions: [], comments: [], shares: [] });
     },
     
     resetState: () => {
@@ -306,6 +432,9 @@ export const useDocumentStore = create<DocumentState>()(
         folders: [],
         templates: [],
         summary: null,
+        versions: [],
+        comments: [],
+        shares: [],
         isLoading: false,
         isUploading: false,
       });

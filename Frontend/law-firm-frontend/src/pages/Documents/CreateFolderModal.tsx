@@ -1,4 +1,5 @@
-// src/pages/Documents/modals/CreateFolderModal.tsx
+// src/pages/Documents/modals/CreateFolderModal.tsx - Complete Version
+
 import React, { useState } from 'react';
 import { useDocumentStore } from '../../stores/documentStore';
 import { Modal } from '../../components/UI/Modal';
@@ -37,12 +38,14 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
         description: description.trim() || undefined,
         parentFolderId: parentFolderId || undefined,
       });
+      toast.success('Folder created successfully');
       onSuccess();
       onClose();
       setName('');
       setDescription('');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create folder:', error);
+      toast.error(error.response?.data?.message || 'Failed to create folder');
     } finally {
       setIsSubmitting(false);
     }
@@ -56,6 +59,7 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Enter folder name"
+          required
         />
 
         <div>
@@ -69,11 +73,17 @@ export const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
           />
         </div>
 
+        {parentFolderId && (
+          <div className="text-xs text-gray-400">
+            Creating sub-folder inside: <span className="font-medium text-gray-600">Folder #{parentFolderId}</span>
+          </div>
+        )}
+
         <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} isLoading={isSubmitting}>
+          <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!name.trim()}>
             Create Folder
           </Button>
         </div>

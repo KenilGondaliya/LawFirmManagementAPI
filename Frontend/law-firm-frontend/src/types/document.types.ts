@@ -1,4 +1,5 @@
-// src/types/document.types.ts
+// src/types/document.types.ts - Complete with all types
+
 export interface Document {
   id: number;
   uuid: string;
@@ -37,6 +38,10 @@ export interface DocumentShare {
   shareToken: string;
   permission: string;
   expiresAt?: string;
+  sharedWithUserId?: number;
+  sharedWithEmail?: string;
+  sharedBy?: number;
+  sharedAt?: string;
 }
 
 export interface DocumentComment {

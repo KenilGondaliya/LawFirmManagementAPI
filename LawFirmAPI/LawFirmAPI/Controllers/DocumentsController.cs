@@ -1,9 +1,11 @@
-// Controllers/DocumentsController.cs
+// Controllers/DocumentsController.cs - Fixed route ordering
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
 using LawFirmAPI.Services;
 using LawFirmAPI.Models.DTOs;
+using System.Collections.Generic;
 
 namespace LawFirmAPI.Controllers
 {
@@ -21,7 +23,51 @@ namespace LawFirmAPI.Controllers
             _firmContextService = firmContextService;
         }
 
-        // Basic Document Operations
+        // ==================== Document Sharing (MUST COME FIRST) ====================
+        
+        // ✅ IMPORTANT: These routes MUST come before [HttpGet("{id}")]
+        
+        [HttpGet("shared-with-me")]
+        public async Task<IActionResult> GetSharedWithMe()
+        {
+            var userId = await _firmContextService.GetCurrentUserId();
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var sharedDocuments = await _documentsService.GetSharedWithMe(userId, firmId);
+            return Ok(sharedDocuments);
+        }
+
+        [HttpGet("shared-by-me")]
+        public async Task<IActionResult> GetSharedByMe()
+        {
+            var userId = await _firmContextService.GetCurrentUserId();
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var sharedDocuments = await _documentsService.GetSharedByMe(userId, firmId);
+            return Ok(sharedDocuments);
+        }
+
+        [HttpGet("shared/download/{shareToken}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DownloadSharedDocument(string shareToken)
+        {
+            var result = await _documentsService.DownloadSharedDocument(shareToken);
+            if (result == null)
+                return NotFound(new { message = "Shared document not found or expired" });
+            
+            return File(result.FileBytes, result.MimeType, result.FileName);
+        }
+
+        [HttpGet("shared/details/{shareToken}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetSharedDocumentDetails(string shareToken)
+        {
+            var details = await _documentsService.GetSharedDocumentDetails(shareToken);
+            if (details == null)
+                return NotFound(new { message = "Shared document not found or expired" });
+            return Ok(details);
+        }
+
+        // ==================== Basic Document Operations ====================
+        
         [HttpGet]
         public async Task<IActionResult> GetAllDocuments(
             [FromQuery] long? matterId,
@@ -33,6 +79,7 @@ namespace LawFirmAPI.Controllers
             return Ok(documents);
         }
 
+        // ⚠️ This route must come AFTER all specific routes
         [HttpGet("{id}")]
         public async Task<IActionResult> GetDocumentById(long id)
         {
@@ -82,7 +129,8 @@ namespace LawFirmAPI.Controllers
             return File(fileBytes, document?.MimeType ?? "application/octet-stream", document?.FileName);
         }
 
-        // Document Versions
+        // ==================== Document Versions ====================
+        
         [HttpPost("{id}/versions")]
         public async Task<IActionResult> CreateVersion(long id, IFormFile file, [FromQuery] string? changeSummary)
         {
@@ -103,7 +151,8 @@ namespace LawFirmAPI.Controllers
             return Ok(versions);
         }
 
-        // Document Sharing
+        // ==================== Document Sharing (Post/Delete) ====================
+        
         [HttpPost("{id}/share")]
         public async Task<IActionResult> ShareDocument(
             long id,
@@ -128,24 +177,23 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Share revoked successfully" });
         }
 
-        // Document Comments
+        // ==================== Document Comments ====================
+        
         [HttpGet("{id}/comments")]
         public async Task<IActionResult> GetDocumentComments(long id)
         {
-            var document = await _documentsService.GetDocumentById(id, await _firmContextService.GetCurrentFirmId());
-            if (document == null)
-                return NotFound(new { message = "Document not found" });
-            // Comments would be loaded separately
-            return Ok(new List<object>());
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var comments = await _documentsService.GetDocumentComments(id, firmId);
+            return Ok(comments);
         }
 
         [HttpPost("{id}/comments")]
-        public async Task<IActionResult> AddComment(long id, [FromBody] string comment)
+        public async Task<IActionResult> AddComment(long id, [FromBody] AddCommentDto addCommentDto)
         {
             var firmId = await _firmContextService.GetCurrentFirmId();
             var userId = await _firmContextService.GetCurrentUserId();
-            var documentComment = await _documentsService.AddComment(id, firmId, userId, comment);
-            return Ok(new { message = "Comment added successfully", comment = documentComment });
+            var comment = await _documentsService.AddComment(id, firmId, userId, addCommentDto.Comment);
+            return Ok(new { message = "Comment added successfully", comment });
         }
 
         [HttpDelete("comments/{commentId}")]
@@ -158,7 +206,8 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Comment deleted successfully" });
         }
 
-        // AI Features
+        // ==================== AI Features ====================
+        
         [HttpGet("{id}/summary")]
         public async Task<IActionResult> GetDocumentSummary(long id)
         {
@@ -177,7 +226,8 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Summary generated successfully", summary });
         }
 
-        // Document Types
+        // ==================== Document Types ====================
+        
         [HttpGet("types")]
         public async Task<IActionResult> GetDocumentTypes()
         {
@@ -194,7 +244,8 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Document type created successfully", type });
         }
 
-        // Folders
+        // ==================== Folders ====================
+        
         [HttpGet("folders")]
         public async Task<IActionResult> GetFolders([FromQuery] long? parentFolderId)
         {
@@ -222,7 +273,8 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Document moved successfully" });
         }
 
-        // Templates
+        // ==================== Templates ====================
+        
         [HttpGet("templates")]
         public async Task<IActionResult> GetTemplates([FromQuery] string? category)
         {
