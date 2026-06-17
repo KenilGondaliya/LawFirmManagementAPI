@@ -1,12 +1,10 @@
-// Models/DTOs/MattersDTOs.cs - COMPLETE VERSION
-
 using System;
 using System.Collections.Generic;
 
 namespace LawFirmAPI.Models.DTOs
 {
     // ==================== Main Matter DTOs ====================
-    
+
     public class MatterDto
     {
         public long Id { get; set; }
@@ -80,12 +78,14 @@ namespace LawFirmAPI.Models.DTOs
         public decimal? FixedFee { get; set; }
         public long? ResponsibleAdvocateId { get; set; }
         public long? PracticeAreaId { get; set; }
+        public long? CourtId { get; set; }
+        public long? JudicialDistrictId { get; set; }
         public string? ClientReference { get; set; }
         public DateTime? ClosedDate { get; set; }
     }
 
     // ==================== Matter Types DTOs ====================
-    
+
     public class MatterTypeDto
     {
         public long Id { get; set; }
@@ -110,7 +110,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Matter Parties DTOs ====================
-    
+
     public class MatterPartyDto
     {
         public long Id { get; set; }
@@ -137,7 +137,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Matter Notes DTOs ====================
-    
+
     public class MatterNoteDto
     {
         public long Id { get; set; }
@@ -161,7 +161,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Practice Areas DTOs ====================
-    
+
     public class PracticeAreaDto
     {
         public long Id { get; set; }
@@ -187,7 +187,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Courts DTOs ====================
-    
+
     public class CourtDto
     {
         public long Id { get; set; }
@@ -226,7 +226,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Judicial Districts DTOs ====================
-    
+
     public class JudicialDistrictDto
     {
         public long Id { get; set; }
@@ -250,7 +250,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Statistics DTOs ====================
-    
+
     public class DashboardMatterStatsDto
     {
         public int Total { get; set; }
@@ -274,7 +274,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Related Data DTOs ====================
-    
+
     public class MatterDocumentDto
     {
         public long Id { get; set; }
@@ -320,7 +320,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Time Entries DTOs ====================
-    
+
     public class TimeEntryDto
     {
         public long Id { get; set; }
@@ -351,7 +351,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Deadlines DTOs ====================
-    
+
     public class MatterDeadlineDto
     {
         public long Id { get; set; }
@@ -370,7 +370,7 @@ namespace LawFirmAPI.Models.DTOs
     }
 
     // ==================== Search and Filter DTOs ====================
-    
+
     public class AdvancedSearchDto
     {
         public string? Title { get; set; }

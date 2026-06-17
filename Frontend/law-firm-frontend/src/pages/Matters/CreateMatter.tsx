@@ -1,10 +1,10 @@
-// src/pages/Matters/CreateMatter.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { ArrowLeftIcon, PlusIcon, TrashIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, TrashIcon, UserPlusIcon } from '@heroicons/react/24/outline';
 import { useMatterStore } from '../../stores/matterStore';
 import { useContactStore } from '../../stores/contactStore';
+import { matterService } from '../../services/matter.service';
 import { Button } from '../../components/UI/Button';
 import { Input } from '../../components/UI/Input';
 import { Card } from '../../components/UI/Card';
@@ -66,6 +66,10 @@ export const CreateMatter: React.FC = () => {
   const { createMatter, matterTypes, fetchMatterTypes, practiceAreas, fetchPracticeAreas } = useMatterStore();
   const { contacts, fetchContacts } = useContactStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [courts, setCourts] = useState<Array<{ id: number; name: string; city?: string; state?: string }>>([]);
+  const [judicialDistricts, setJudicialDistricts] = useState<Array<{ id: number; name: string; state?: string }>>([]);
+  const [loadingCourts, setLoadingCourts] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
 
   const { register, control, handleSubmit, watch, formState: { errors } } = useForm<MatterFormData>({
     defaultValues: {
@@ -86,40 +90,85 @@ export const CreateMatter: React.FC = () => {
     fetchMatterTypes();
     fetchPracticeAreas();
     fetchContacts({});
+    loadCourtsAndDistricts();
   }, []);
+
+  const loadCourtsAndDistricts = async () => {
+    setLoadingCourts(true);
+    setLoadingDistricts(true);
+    try {
+      const data = await matterService.getCourtsAndDistricts();
+      setCourts(data.courts);
+      setJudicialDistricts(data.judicialDistricts);
+    } catch (error) {
+      console.error('Failed to load courts and districts:', error);
+      await loadCourts();
+      await loadJudicialDistricts();
+    } finally {
+      setLoadingCourts(false);
+      setLoadingDistricts(false);
+    }
+  };
+
+  const loadCourts = async () => {
+    try {
+      const data = await matterService.getCourts();
+      setCourts(data);
+    } catch (error) {
+      console.error('Failed to load courts:', error);
+      setCourts([]);
+    }
+  };
+
+  const loadJudicialDistricts = async () => {
+    try {
+      const data = await matterService.getJudicialDistricts();
+      setJudicialDistricts(data);
+    } catch (error) {
+      console.error('Failed to load judicial districts:', error);
+      setJudicialDistricts([]);
+    }
+  };
 
   const onSubmit = async (data: MatterFormData) => {
     setIsSubmitting(true);
     try {
-      const matter = await createMatter({
+      const submitData = {
         matterTypeId: data.matterTypeId,
         title: data.title,
         description: data.description,
-        status: 'OPEN',
+        status: 'OPEN' as const,
         priority: data.priority,
         openDate: data.openDate,
         pendingDate: data.pendingDate,
         statuteOfLimitationsDate: data.statuteOfLimitationsDate,
-        estimatedValue: data.estimatedValue,
+        estimatedValue: data.estimatedValue ? Number(data.estimatedValue) : undefined,
         billingMethod: data.billingMethod,
-        hourlyRate: data.hourlyRate,
-        fixedFee: data.fixedFee,
-        originatingAdvocateId: data.originatingAdvocateId,
-        responsibleAdvocateId: data.responsibleAdvocateId,
-        practiceAreaId: data.practiceAreaId,
-        courtId: data.courtId,
-        judicialDistrictId: data.judicialDistrictId,
+        hourlyRate: data.hourlyRate ? Number(data.hourlyRate) : undefined,
+        fixedFee: data.fixedFee ? Number(data.fixedFee) : undefined,
+        originatingAdvocateId: data.originatingAdvocateId ?? undefined,
+        responsibleAdvocateId: data.responsibleAdvocateId ?? undefined,
+        practiceAreaId: data.practiceAreaId ?? undefined,
+        courtId: data.courtId && data.courtId > 0 ? Number(data.courtId) : undefined,
+        judicialDistrictId: data.judicialDistrictId && data.judicialDistrictId > 0 ? Number(data.judicialDistrictId) : undefined,
         clientReference: data.clientReference,
         isConfidential: data.isConfidential,
         parties: data.parties.filter(p => p.contactId !== 0)
-      });
+      };
+
+      const matter = await createMatter(submitData);
       if (matter) {
         toast.success('Matter created successfully');
         navigate(`/matters/${matter.id}`);
       }
     } catch (error: any) {
       console.error('Failed to create matter:', error);
-      toast.error(error.response?.data?.message || 'Failed to create matter');
+      if (error.response?.data?.errors) {
+        const errorMessages = Object.values(error.response.data.errors).flat().join(', ');
+        toast.error(errorMessages);
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to create matter');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -129,7 +178,6 @@ export const CreateMatter: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate('/matters')}
@@ -144,7 +192,6 @@ export const CreateMatter: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Basic Information */}
         <Card>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -183,7 +230,6 @@ export const CreateMatter: React.FC = () => {
           </div>
         </Card>
 
-        {/* Classification */}
         <Card>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Classification</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -227,7 +273,6 @@ export const CreateMatter: React.FC = () => {
           </div>
         </Card>
 
-        {/* Dates */}
         <Card>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Important Dates</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -250,7 +295,6 @@ export const CreateMatter: React.FC = () => {
           </div>
         </Card>
 
-        {/* Financial Information */}
         <Card>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Financial Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -295,7 +339,6 @@ export const CreateMatter: React.FC = () => {
           </div>
         </Card>
 
-        {/* Legal Information */}
         <Card>
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Legal Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -304,22 +347,43 @@ export const CreateMatter: React.FC = () => {
               placeholder="Client's reference number"
               {...register('clientReference')}
             />
-            <Input
-              label="Court ID"
-              type="number"
-              placeholder="Court ID"
-              {...register('courtId')}
-            />
-            <Input
-              label="Judicial District ID"
-              type="number"
-              placeholder="Judicial district ID"
-              {...register('judicialDistrictId')}
-            />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Court</label>
+              <select
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                {...register('courtId')}
+                disabled={loadingCourts}
+              >
+                <option value="">Select court...</option>
+                {courts.map((court) => (
+                  <option key={court.id} value={court.id}>
+                    {court.name} {court.city ? `(${court.city})` : ''}
+                  </option>
+                ))}
+              </select>
+              {loadingCourts && <p className="text-sm text-gray-400 mt-1">Loading courts...</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Judicial District</label>
+              <select
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                {...register('judicialDistrictId')}
+                disabled={loadingDistricts}
+              >
+                <option value="">Select judicial district...</option>
+                {judicialDistricts.map((district) => (
+                  <option key={district.id} value={district.id}>
+                    {district.name} {district.state ? `(${district.state})` : ''}
+                  </option>
+                ))}
+              </select>
+              {loadingDistricts && <p className="text-sm text-gray-400 mt-1">Loading districts...</p>}
+            </div>
           </div>
         </Card>
 
-        {/* Parties */}
         <Card>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Parties</h2>
@@ -401,7 +465,6 @@ export const CreateMatter: React.FC = () => {
           )}
         </Card>
 
-        {/* Actions */}
         <div className="flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => navigate('/matters')}>
             Cancel
@@ -414,3 +477,5 @@ export const CreateMatter: React.FC = () => {
     </div>
   );
 };
+
+export default CreateMatter;

@@ -1,5 +1,3 @@
-// Services/MattersService.cs - COMPLETE WITH ALL FEATURES
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,43 +18,49 @@ namespace LawFirmAPI.Services
         Task<MatterDto> UpdateMatter(long id, long firmId, UpdateMatterDto updateDto);
         Task<bool> DeleteMatter(long id, long firmId);
         Task<MatterDto> UpdateMatterStatus(long id, long firmId, string status);
-        
+
         // Matter Types
         Task<List<MatterTypeDto>> GetMatterTypes(long firmId);
         Task<MatterTypeDto> CreateMatterType(long firmId, CreateMatterTypeDto createDto);
         Task<MatterTypeDto> UpdateMatterType(long id, long firmId, UpdateMatterTypeDto updateDto);
         Task<bool> DeleteMatterType(long id, long firmId);
-        
+
         // Matter Parties
         Task<List<MatterPartyDto>> GetMatterParties(long matterId, long firmId);
         Task<MatterPartyDto> AddMatterParty(long matterId, long firmId, AddMatterPartyDto partyDto);
         Task<MatterPartyDto> UpdateMatterParty(long partyId, long firmId, UpdateMatterPartyDto updateDto);
         Task<bool> RemoveMatterParty(long matterId, long firmId, long partyId);
-        
+
         // Matter Notes
         Task<List<MatterNoteDto>> GetMatterNotes(long matterId, long firmId, long userId);
         Task<MatterNoteDto> AddMatterNote(long matterId, long firmId, long userId, AddMatterNoteDto noteDto);
         Task<MatterNoteDto> UpdateMatterNote(long noteId, long firmId, UpdateMatterNoteDto updateDto);
         Task<bool> DeleteMatterNote(long noteId, long firmId);
-        
+
         // Practice Areas
         Task<List<PracticeAreaDto>> GetPracticeAreas(long firmId);
         Task<PracticeAreaDto> CreatePracticeArea(long firmId, CreatePracticeAreaDto createDto);
         Task<PracticeAreaDto> UpdatePracticeArea(long id, long firmId, UpdatePracticeAreaDto updateDto);
         Task<bool> DeletePracticeArea(long id, long firmId);
-        
+
         // Courts
         Task<List<CourtDto>> GetCourts(long firmId, string? search, string? state);
         Task<CourtDto> CreateCourt(long firmId, CreateCourtDto createDto);
         Task<CourtDto> UpdateCourt(long id, long firmId, UpdateCourtDto updateDto);
         Task<bool> DeleteCourt(long id, long firmId);
-        
+
+        // ADD THIS: GetCourtById method
+        Task<CourtDto?> GetCourtById(long id, long firmId);
+
         // Judicial Districts
         Task<List<JudicialDistrictDto>> GetJudicialDistricts(long firmId, string? search, string? state);
         Task<JudicialDistrictDto> CreateJudicialDistrict(long firmId, CreateJudicialDistrictDto createDto);
         Task<JudicialDistrictDto> UpdateJudicialDistrict(long id, long firmId, UpdateJudicialDistrictDto updateDto);
         Task<bool> DeleteJudicialDistrict(long id, long firmId);
-        
+
+        // ADD THIS: GetJudicialDistrictById method
+        Task<JudicialDistrictDto?> GetJudicialDistrictById(long id, long firmId);
+
         // Matter Filters
         Task<List<MatterDto>> GetMattersByStatus(long firmId, string status);
         Task<List<MatterDto>> GetOpenMatters(long firmId);
@@ -67,44 +71,43 @@ namespace LawFirmAPI.Services
         Task<List<MatterDto>> GetNonLitigationMatters(long firmId);
         Task<List<MatterDto>> GetMattersAssignedToUser(long firmId, long userId);
         Task<List<MatterDto>> GetMattersByClient(long firmId, long contactId);
-        
+
         // Statistics
         Task<DashboardMatterStatsDto> GetMatterStats(long firmId);
         Task<List<MatterTimelineDto>> GetMatterTimeline(long matterId, long firmId);
-        
+
         // Related Data
         Task<List<MatterDocumentDto>> GetMatterDocuments(long matterId, long firmId);
         Task<List<MatterTaskDto>> GetMatterTasks(long matterId, long firmId);
         Task<List<MatterEventDto>> GetMatterEvents(long matterId, long firmId);
         Task<List<MatterBillDto>> GetMatterBills(long matterId, long firmId);
-        
+
         // Time Entries
         Task<List<TimeEntryDto>> GetTimeEntries(long matterId, long firmId, DateTime? startDate, DateTime? endDate);
         Task<TimeEntryDto> AddTimeEntry(long matterId, long firmId, long userId, AddTimeEntryDto entryDto);
         Task<TimeEntryDto> UpdateTimeEntry(long entryId, long firmId, UpdateTimeEntryDto updateDto);
         Task<bool> DeleteTimeEntry(long entryId, long firmId);
-        
+
         // Deadlines
         Task<List<MatterDeadlineDto>> GetMatterDeadlines(long matterId, long firmId);
         Task<MatterDeadlineDto> AddDeadline(long matterId, long firmId, long userId, AddDeadlineDto deadlineDto);
         Task<bool> MarkDeadlineAsMet(long deadlineId, long firmId);
-        
+
         // Bulk Operations
         Task<int> BulkUpdateStatus(long firmId, List<long> matterIds, string status);
         Task<int> BulkAssignAdvocate(long firmId, List<long> matterIds, long advocateId);
         Task<int> BulkDeleteMatters(long firmId, List<long> matterIds);
-        
+
         // Search
         Task<List<MatterDto>> AdvancedSearch(long firmId, AdvancedSearchDto searchParams);
-        
+
         // Export/Import
         Task<byte[]> ExportMatters(long firmId, string format, ExportFiltersDto filters);
         Task<ImportResultDto> ImportMatters(long firmId, long userId, IFormFile file);
-        
+
         // Activity Logs
         Task<List<ActivityLogDto>> GetMatterActivityLogs(long matterId, long firmId, DateTime? startDate, DateTime? endDate, int limit);
     }
-
     public class MattersService : IMattersService
     {
         private readonly ApplicationDbContext _context;
@@ -125,6 +128,8 @@ namespace LawFirmAPI.Services
                 .Include(m => m.OriginatingAdvocate)
                 .Include(m => m.ResponsibleAdvocate)
                 .Include(m => m.PracticeArea)
+                .Include(m => m.Court)
+                .Include(m => m.JudicialDistrict)
                 .Where(m => m.FirmId == firmId && m.DeletedAt == null);
 
             if (!string.IsNullOrEmpty(status))
@@ -171,7 +176,6 @@ namespace LawFirmAPI.Services
 
         public async Task<MatterDto> CreateMatter(long firmId, long userId, CreateMatterDto createDto)
         {
-            // Generate matter number
             var firmSetting = await _context.FirmSettings.FirstOrDefaultAsync(fs => fs.FirmId == firmId);
             var prefix = firmSetting?.MatterPrefix ?? "MAT";
             var count = await _context.Matters.CountAsync(m => m.FirmId == firmId) + 1;
@@ -196,8 +200,8 @@ namespace LawFirmAPI.Services
                 OriginatingAdvocateId = createDto.OriginatingAdvocateId,
                 ResponsibleAdvocateId = createDto.ResponsibleAdvocateId,
                 PracticeAreaId = createDto.PracticeAreaId,
-                CourtId = createDto.CourtId,
-                JudicialDistrictId = createDto.JudicialDistrictId,
+                CourtId = createDto.CourtId.HasValue && createDto.CourtId.Value > 0 ? createDto.CourtId : null,
+                JudicialDistrictId = createDto.JudicialDistrictId.HasValue && createDto.JudicialDistrictId.Value > 0 ? createDto.JudicialDistrictId : null,
                 ClientReference = createDto.ClientReference,
                 IsConfidential = createDto.IsConfidential,
                 CreatedBy = userId,
@@ -208,7 +212,6 @@ namespace LawFirmAPI.Services
             _context.Matters.Add(matter);
             await _context.SaveChangesAsync();
 
-            // Add parties
             if (createDto.Parties != null)
             {
                 foreach (var partyDto in createDto.Parties)
@@ -229,7 +232,20 @@ namespace LawFirmAPI.Services
 
             AddRecentActivity(firmId, userId, "CREATE", "Matter", matter.Id, matter.Title, $"Created matter: {matter.Title}");
 
-            return MapToDto(matter);
+            var createdMatter = await _context.Matters
+                .Include(m => m.MatterType)
+                .Include(m => m.OriginatingAdvocate)
+                .Include(m => m.ResponsibleAdvocate)
+                .Include(m => m.PracticeArea)
+                .Include(m => m.Court)
+                .Include(m => m.JudicialDistrict)
+                .Include(m => m.MatterParties)
+                    .ThenInclude(mp => mp.Contact)
+                .Include(m => m.MatterNotes)
+                    .ThenInclude(mn => mn.User)
+                .FirstOrDefaultAsync(m => m.Id == matter.Id);
+
+            return MapToDto(createdMatter!);
         }
 
         public async Task<MatterDto> UpdateMatter(long id, long firmId, UpdateMatterDto updateDto)
@@ -258,6 +274,14 @@ namespace LawFirmAPI.Services
                 matter.ResponsibleAdvocateId = updateDto.ResponsibleAdvocateId;
             if (updateDto.PracticeAreaId.HasValue)
                 matter.PracticeAreaId = updateDto.PracticeAreaId;
+            if (updateDto.CourtId.HasValue && updateDto.CourtId.Value > 0)
+                matter.CourtId = updateDto.CourtId;
+            else if (updateDto.CourtId.HasValue && updateDto.CourtId.Value == 0)
+                matter.CourtId = null;
+            if (updateDto.JudicialDistrictId.HasValue && updateDto.JudicialDistrictId.Value > 0)
+                matter.JudicialDistrictId = updateDto.JudicialDistrictId;
+            else if (updateDto.JudicialDistrictId.HasValue && updateDto.JudicialDistrictId.Value == 0)
+                matter.JudicialDistrictId = null;
             if (updateDto.ClientReference != null)
                 matter.ClientReference = updateDto.ClientReference;
             if (updateDto.ClosedDate.HasValue)
@@ -268,7 +292,20 @@ namespace LawFirmAPI.Services
 
             AddRecentActivity(firmId, matter.CreatedBy, "UPDATE", "Matter", matter.Id, matter.Title, $"Updated matter: {matter.Title}");
 
-            return MapToDto(matter);
+            var updatedMatter = await _context.Matters
+                .Include(m => m.MatterType)
+                .Include(m => m.OriginatingAdvocate)
+                .Include(m => m.ResponsibleAdvocate)
+                .Include(m => m.PracticeArea)
+                .Include(m => m.Court)
+                .Include(m => m.JudicialDistrict)
+                .Include(m => m.MatterParties)
+                    .ThenInclude(mp => mp.Contact)
+                .Include(m => m.MatterNotes)
+                    .ThenInclude(mn => mn.User)
+                .FirstOrDefaultAsync(m => m.Id == id && m.FirmId == firmId);
+
+            return MapToDto(updatedMatter!);
         }
 
         public async Task<bool> DeleteMatter(long id, long firmId)
@@ -297,7 +334,7 @@ namespace LawFirmAPI.Services
 
             var oldStatus = matter.Status;
             matter.Status = status;
-            
+
             if (status == "CLOSED" && !matter.ClosedDate.HasValue)
                 matter.ClosedDate = DateTime.UtcNow;
             else if (status == "PENDING" && !matter.PendingDate.HasValue)
@@ -308,7 +345,20 @@ namespace LawFirmAPI.Services
 
             AddRecentActivity(firmId, matter.CreatedBy, "STATUS_CHANGE", "Matter", matter.Id, matter.Title, $"Changed status from {oldStatus} to {status}");
 
-            return MapToDto(matter);
+            var updatedMatter = await _context.Matters
+                .Include(m => m.MatterType)
+                .Include(m => m.OriginatingAdvocate)
+                .Include(m => m.ResponsibleAdvocate)
+                .Include(m => m.PracticeArea)
+                .Include(m => m.Court)
+                .Include(m => m.JudicialDistrict)
+                .Include(m => m.MatterParties)
+                    .ThenInclude(mp => mp.Contact)
+                .Include(m => m.MatterNotes)
+                    .ThenInclude(mn => mn.User)
+                .FirstOrDefaultAsync(m => m.Id == id && m.FirmId == firmId);
+
+            return MapToDto(updatedMatter!);
         }
 
         // ==================== Matter Types ====================
@@ -683,7 +733,10 @@ namespace LawFirmAPI.Services
 
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(c => c.Name.Contains(search) || (c.City != null && c.City.Contains(search)));
+                query = query.Where(c =>
+                    c.Name.Contains(search) ||
+                    (c.City != null && c.City.Contains(search)) ||
+                    (c.State != null && c.State.Contains(search)));
             }
 
             if (!string.IsNullOrEmpty(state))
@@ -691,7 +744,9 @@ namespace LawFirmAPI.Services
                 query = query.Where(c => c.State == state);
             }
 
-            var courts = await query.ToListAsync();
+            var courts = await query
+                .OrderBy(c => c.Name)
+                .ToListAsync();
 
             return courts.Select(c => new CourtDto
             {
@@ -709,14 +764,23 @@ namespace LawFirmAPI.Services
 
         public async Task<CourtDto> CreateCourt(long firmId, CreateCourtDto createDto)
         {
+            if (string.IsNullOrWhiteSpace(createDto.Name))
+                throw new ArgumentException("Court name is required");
+
+            var existing = await _context.Courts
+                .FirstOrDefaultAsync(c => c.Name.ToLower() == createDto.Name.ToLower());
+
+            if (existing != null)
+                throw new InvalidOperationException($"A court with name '{createDto.Name}' already exists");
+
             var court = new Court
             {
-                Name = createDto.Name,
+                Name = createDto.Name.Trim(),
                 Level = createDto.Level,
                 Address = createDto.Address,
                 City = createDto.City,
                 State = createDto.State,
-                Country = createDto.Country,
+                Country = createDto.Country ?? "India",
                 Phone = createDto.Phone,
                 Email = createDto.Email,
                 CreatedAt = DateTime.UtcNow
@@ -745,6 +809,16 @@ namespace LawFirmAPI.Services
 
             if (court == null)
                 throw new KeyNotFoundException("Court not found");
+
+            if (!string.IsNullOrEmpty(updateDto.Name) &&
+                !string.Equals(updateDto.Name, court.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                var existing = await _context.Courts
+                    .FirstOrDefaultAsync(c => c.Name.ToLower() == updateDto.Name.ToLower() && c.Id != id);
+
+                if (existing != null)
+                    throw new InvalidOperationException($"A court with name '{updateDto.Name}' already exists");
+            }
 
             if (updateDto.Name != null)
                 court.Name = updateDto.Name;
@@ -786,6 +860,12 @@ namespace LawFirmAPI.Services
             if (court == null)
                 return false;
 
+            var hasMatters = await _context.Matters
+                .AnyAsync(m => m.CourtId == id);
+
+            if (hasMatters)
+                throw new InvalidOperationException("Cannot delete court because it is referenced by one or more matters");
+
             _context.Courts.Remove(court);
             await _context.SaveChangesAsync();
 
@@ -800,30 +880,46 @@ namespace LawFirmAPI.Services
 
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(jd => jd.Name.Contains(search));
+                query = query.Where(d =>
+                    d.Name.Contains(search) ||
+                    (d.State != null && d.State.Contains(search)) ||
+                    (d.Description != null && d.Description.Contains(search)));
             }
 
             if (!string.IsNullOrEmpty(state))
             {
-                query = query.Where(jd => jd.State == state);
+                query = query.Where(d => d.State == state);
             }
 
-            var districts = await query.ToListAsync();
+            var districts = await query
+                .OrderBy(d => d.Name)
+                .ToListAsync();
 
-            return districts.Select(jd => new JudicialDistrictDto
+            return districts.Select(d => new JudicialDistrictDto
             {
-                Id = jd.Id,
-                Name = jd.Name,
-                State = jd.State,
-                Description = jd.Description
+                Id = d.Id,
+                Name = d.Name,
+                State = d.State,
+                Description = d.Description
             }).ToList();
         }
 
         public async Task<JudicialDistrictDto> CreateJudicialDistrict(long firmId, CreateJudicialDistrictDto createDto)
         {
+            if (string.IsNullOrWhiteSpace(createDto.Name))
+                throw new ArgumentException("Judicial district name is required");
+
+            var existing = await _context.JudicialDistricts
+                .FirstOrDefaultAsync(d =>
+                    d.Name.ToLower() == createDto.Name.ToLower() &&
+                    d.State == createDto.State);
+
+            if (existing != null)
+                throw new InvalidOperationException($"A judicial district with name '{createDto.Name}' in state '{createDto.State}' already exists");
+
             var district = new JudicialDistrict
             {
-                Name = createDto.Name,
+                Name = createDto.Name.Trim(),
                 State = createDto.State,
                 Description = createDto.Description,
                 CreatedAt = DateTime.UtcNow
@@ -847,6 +943,20 @@ namespace LawFirmAPI.Services
 
             if (district == null)
                 throw new KeyNotFoundException("Judicial district not found");
+
+            if (!string.IsNullOrEmpty(updateDto.Name) &&
+                !string.Equals(updateDto.Name, district.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                var state = updateDto.State ?? district.State;
+                var existing = await _context.JudicialDistricts
+                    .FirstOrDefaultAsync(d =>
+                        d.Name.ToLower() == updateDto.Name.ToLower() &&
+                        d.State == state &&
+                        d.Id != id);
+
+                if (existing != null)
+                    throw new InvalidOperationException($"A judicial district with name '{updateDto.Name}' in state '{state}' already exists");
+            }
 
             if (updateDto.Name != null)
                 district.Name = updateDto.Name;
@@ -872,6 +982,12 @@ namespace LawFirmAPI.Services
 
             if (district == null)
                 return false;
+
+            var hasMatters = await _context.Matters
+                .AnyAsync(m => m.JudicialDistrictId == id);
+
+            if (hasMatters)
+                throw new InvalidOperationException("Cannot delete judicial district because it is referenced by one or more matters");
 
             _context.JudicialDistricts.Remove(district);
             await _context.SaveChangesAsync();
@@ -1344,6 +1460,8 @@ namespace LawFirmAPI.Services
             var query = _context.Matters
                 .Include(m => m.MatterType)
                 .Include(m => m.ResponsibleAdvocate)
+                .Include(m => m.Court)
+                .Include(m => m.JudicialDistrict)
                 .Where(m => m.FirmId == firmId && m.DeletedAt == null);
 
             if (!string.IsNullOrEmpty(searchParams.Title))
@@ -1421,14 +1539,15 @@ namespace LawFirmAPI.Services
 
             var matters = await query.ToListAsync();
 
-            // Generate CSV content
             var csv = new System.Text.StringBuilder();
-            csv.AppendLine("Matter Number,Title,Status,Priority,Open Date,Client Reference,Estimated Value,Billing Method,Responsible Advocate");
+            csv.AppendLine("Matter Number,Title,Status,Priority,Open Date,Client Reference,Estimated Value,Billing Method,Responsible Advocate,Court,Judicial District");
 
             foreach (var matter in matters)
             {
                 var advocateName = matter.ResponsibleAdvocate != null ? $"{matter.ResponsibleAdvocate.FirstName} {matter.ResponsibleAdvocate.LastName}" : "";
-                csv.AppendLine($"\"{matter.MatterNumber}\",\"{matter.Title}\",\"{matter.Status}\",\"{matter.Priority}\",\"{matter.OpenDate:yyyy-MM-dd}\",\"{matter.ClientReference}\",\"{matter.EstimatedValue}\",\"{matter.BillingMethod}\",\"{advocateName}\"");
+                var courtName = matter.Court?.Name ?? "";
+                var districtName = matter.JudicialDistrict?.Name ?? "";
+                csv.AppendLine($"\"{matter.MatterNumber}\",\"{matter.Title}\",\"{matter.Status}\",\"{matter.Priority}\",\"{matter.OpenDate:yyyy-MM-dd}\",\"{matter.ClientReference}\",\"{matter.EstimatedValue}\",\"{matter.BillingMethod}\",\"{advocateName}\",\"{courtName}\",\"{districtName}\"");
             }
 
             return System.Text.Encoding.UTF8.GetBytes(csv.ToString());
@@ -1440,7 +1559,7 @@ namespace LawFirmAPI.Services
 
             using var stream = new StreamReader(file.OpenReadStream());
             var content = await stream.ReadToEndAsync();
-            var lines = content.Split('\n').Skip(1); // Skip header
+            var lines = content.Split('\n').Skip(1);
 
             foreach (var line in lines)
             {
@@ -1582,6 +1701,43 @@ namespace LawFirmAPI.Services
             };
             _context.RecentActivities.Add(activity);
             _context.SaveChangesAsync().Wait();
+        }
+
+        public async Task<CourtDto?> GetCourtById(long id, long firmId)
+        {
+            var court = await _context.Courts.FindAsync(id);
+
+            if (court == null)
+                return null;
+
+            return new CourtDto
+            {
+                Id = court.Id,
+                Name = court.Name,
+                Level = court.Level,
+                Address = court.Address,
+                City = court.City,
+                State = court.State,
+                Country = court.Country,
+                Phone = court.Phone,
+                Email = court.Email
+            };
+        }
+
+        public async Task<JudicialDistrictDto?> GetJudicialDistrictById(long id, long firmId)
+        {
+            var district = await _context.JudicialDistricts.FindAsync(id);
+
+            if (district == null)
+                return null;
+
+            return new JudicialDistrictDto
+            {
+                Id = district.Id,
+                Name = district.Name,
+                State = district.State,
+                Description = district.Description
+            };
         }
     }
 }

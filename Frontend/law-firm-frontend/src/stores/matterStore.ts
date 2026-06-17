@@ -1,5 +1,3 @@
-// src/stores/matterStore.ts - COMPLETE VERSION
-
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { matterService } from '../services/matter.service';
@@ -26,7 +24,6 @@ import {
 } from '../types/matter.types';
 
 interface MatterState {
-  // State
   matters: Matter[];
   selectedMatter: Matter | null;
   matterTypes: MatterType[];
@@ -46,7 +43,6 @@ interface MatterState {
   statusFilter: string;
   priorityFilter: string;
   
-  // Actions - Basic CRUD
   fetchMatters: (params?: { status?: string; priority?: string; search?: string; page?: number }) => Promise<void>;
   fetchMatterById: (id: number) => Promise<void>;
   createMatter: (data: CreateMatterData) => Promise<Matter | null>;
@@ -54,57 +50,47 @@ interface MatterState {
   deleteMatter: (id: number) => Promise<boolean>;
   updateMatterStatus: (id: number, status: string) => Promise<Matter | null>;
   
-  // Actions - Matter Types
   fetchMatterTypes: () => Promise<void>;
   createMatterType: (data: { name: string; category: string; description?: string }) => Promise<MatterType | null>;
   updateMatterType: (id: number, data: { name?: string; description?: string; isActive?: boolean }) => Promise<MatterType | null>;
   deleteMatterType: (id: number) => Promise<boolean>;
   
-  // Actions - Practice Areas
   fetchPracticeAreas: () => Promise<void>;
   createPracticeArea: (data: { name: string; description?: string; color?: string }) => Promise<PracticeArea | null>;
   updatePracticeArea: (id: number, data: { name?: string; description?: string; color?: string; isActive?: boolean }) => Promise<PracticeArea | null>;
   deletePracticeArea: (id: number) => Promise<boolean>;
   
-  // Actions - Matter Parties
   addMatterParty: (matterId: number, data: AddMatterParty) => Promise<any>;
   removeMatterParty: (matterId: number, partyId: number) => Promise<boolean>;
   
-  // Actions - Matter Notes
   addMatterNote: (matterId: number, data: AddMatterNote) => Promise<any>;
   updateMatterNote: (noteId: number, data: { note?: string; isPrivate?: boolean }) => Promise<any>;
   deleteMatterNote: (noteId: number) => Promise<boolean>;
   
-  // Actions - Time Entries
   fetchTimeEntries: (matterId: number, startDate?: string, endDate?: string) => Promise<void>;
   addTimeEntry: (matterId: number, data: AddTimeEntry) => Promise<TimeEntry | null>;
   updateTimeEntry: (entryId: number, data: Partial<AddTimeEntry>) => Promise<TimeEntry | null>;
   deleteTimeEntry: (entryId: number) => Promise<boolean>;
   
-  // Actions - Deadlines
   fetchDeadlines: (matterId: number) => Promise<void>;
   addDeadline: (matterId: number, data: AddDeadline) => Promise<MatterDeadline | null>;
   markDeadlineAsMet: (deadlineId: number) => Promise<boolean>;
   
-  // Actions - Related Data
   fetchMatterDocuments: (matterId: number) => Promise<void>;
   fetchMatterTasks: (matterId: number) => Promise<void>;
   fetchMatterEvents: (matterId: number) => Promise<void>;
   fetchMatterBills: (matterId: number) => Promise<void>;
   fetchMatterTimeline: (matterId: number) => Promise<void>;
   
-  // Actions - Stats & Search
   fetchStats: () => Promise<void>;
   advancedSearch: (params: AdvancedSearchParams) => Promise<Matter[]>;
   bulkUpdateStatus: (data: BulkUpdateData) => Promise<number>;
   bulkAssignAdvocate: (data: BulkUpdateData) => Promise<number>;
   bulkDeleteMatters: (matterIds: number[]) => Promise<number>;
   
-  // Actions - Export/Import
   exportMatters: (format: 'csv' | 'excel', filters?: { status?: string; priority?: string; startDate?: string; endDate?: string }) => Promise<Blob>;
   importMatters: (file: File) => Promise<any>;
   
-  // UI Actions
   setSearchQuery: (query: string) => void;
   setStatusFilter: (status: string) => void;
   setPriorityFilter: (priority: string) => void;
@@ -116,7 +102,6 @@ interface MatterState {
 export const useMatterStore = create<MatterState>()(
   devtools(
     (set, get) => ({
-      // Initial State
       matters: [],
       selectedMatter: null,
       matterTypes: [],
@@ -135,8 +120,6 @@ export const useMatterStore = create<MatterState>()(
       searchQuery: '',
       statusFilter: '',
       priorityFilter: '',
-      
-      // ==================== Basic CRUD ====================
       
       fetchMatters: async (params) => {
         set({ isLoading: true });
@@ -165,7 +148,6 @@ export const useMatterStore = create<MatterState>()(
         try {
           const matter = await matterService.getMatterById(id);
           set({ selectedMatter: matter, isLoading: false });
-          // Fetch related data
           await Promise.all([
             get().fetchMatterDocuments(id),
             get().fetchMatterTasks(id),
@@ -184,16 +166,26 @@ export const useMatterStore = create<MatterState>()(
       createMatter: async (data) => {
         set({ isLoading: true });
         try {
-          const matter = await matterService.createMatter(data);
+          const cleanedData = {
+            ...data,
+            estimatedValue: data.estimatedValue ? Number(data.estimatedValue) : undefined,
+            hourlyRate: data.hourlyRate ? Number(data.hourlyRate) : undefined,
+            fixedFee: data.fixedFee ? Number(data.fixedFee) : undefined,
+          };
+          
+          const matter = await matterService.createMatter(cleanedData);
           set((state) => ({ 
             matters: [matter, ...state.matters],
             isLoading: false 
           }));
           toast.success('Matter created successfully');
           return matter;
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to create matter:', error);
-          toast.error('Failed to create matter');
+          const errorMessage = error.response?.data?.errors 
+            ? Object.values(error.response.data.errors).flat().join(', ')
+            : error.response?.data?.title || 'Failed to create matter';
+          toast.error(errorMessage);
           set({ isLoading: false });
           return null;
         }
@@ -202,7 +194,14 @@ export const useMatterStore = create<MatterState>()(
       updateMatter: async (id, data) => {
         set({ isLoading: true });
         try {
-          const matter = await matterService.updateMatter(id, data);
+          const cleanedData = {
+            ...data,
+            estimatedValue: data.estimatedValue ? Number(data.estimatedValue) : undefined,
+            hourlyRate: data.hourlyRate ? Number(data.hourlyRate) : undefined,
+            fixedFee: data.fixedFee ? Number(data.fixedFee) : undefined,
+          };
+          
+          const matter = await matterService.updateMatter(id, cleanedData);
           set((state) => ({
             matters: state.matters.map((m) => m.id === id ? matter : m),
             selectedMatter: matter,
@@ -210,9 +209,12 @@ export const useMatterStore = create<MatterState>()(
           }));
           toast.success('Matter updated successfully');
           return matter;
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to update matter:', error);
-          toast.error('Failed to update matter');
+          const errorMessage = error.response?.data?.errors 
+            ? Object.values(error.response.data.errors).flat().join(', ')
+            : error.response?.data?.title || 'Failed to update matter';
+          toast.error(errorMessage);
           set({ isLoading: false });
           return null;
         }
@@ -255,8 +257,6 @@ export const useMatterStore = create<MatterState>()(
           return null;
         }
       },
-      
-      // ==================== Matter Types ====================
       
       fetchMatterTypes: async () => {
         try {
@@ -310,8 +310,6 @@ export const useMatterStore = create<MatterState>()(
         }
       },
       
-      // ==================== Practice Areas ====================
-      
       fetchPracticeAreas: async () => {
         try {
           const areas = await matterService.getPracticeAreas();
@@ -364,8 +362,6 @@ export const useMatterStore = create<MatterState>()(
         }
       },
       
-      // ==================== Matter Parties ====================
-      
       addMatterParty: async (matterId, data) => {
         try {
           const party = await matterService.addMatterParty(matterId, data);
@@ -391,8 +387,6 @@ export const useMatterStore = create<MatterState>()(
           return false;
         }
       },
-      
-      // ==================== Matter Notes ====================
       
       addMatterNote: async (matterId, data) => {
         try {
@@ -438,8 +432,6 @@ export const useMatterStore = create<MatterState>()(
           return false;
         }
       },
-      
-      // ==================== Time Entries ====================
       
       fetchTimeEntries: async (matterId, startDate, endDate) => {
         try {
@@ -493,8 +485,6 @@ export const useMatterStore = create<MatterState>()(
         }
       },
       
-      // ==================== Deadlines ====================
-      
       fetchDeadlines: async (matterId) => {
         try {
           const deadlines = await matterService.getMatterDeadlines(matterId);
@@ -534,8 +524,6 @@ export const useMatterStore = create<MatterState>()(
         }
       },
       
-      // ==================== Related Data ====================
-      
       fetchMatterDocuments: async (matterId) => {
         try {
           const documents = await matterService.getMatterDocuments(matterId);
@@ -572,17 +560,14 @@ export const useMatterStore = create<MatterState>()(
         }
       },
       
-      fetchMatterTimeline: async (matterId: number) => {
-  try {
-    const timeline = await matterService.getMatterTimeline(matterId);
-    set({ timeline });
-  } catch (error) {
-    console.error('Failed to fetch matter timeline:', error);
-  }
-},
-
-      
-      // ==================== Stats & Search ====================
+      fetchMatterTimeline: async (matterId) => {
+        try {
+          const timeline = await matterService.getMatterTimeline(matterId);
+          set({ timeline });
+        } catch (error) {
+          console.error('Failed to fetch matter timeline:', error);
+        }
+      },
       
       fetchStats: async () => {
         try {
@@ -646,8 +631,6 @@ export const useMatterStore = create<MatterState>()(
         }
       },
       
-      // ==================== Export/Import ====================
-      
       exportMatters: async (format, filters) => {
         try {
           const blob = await matterService.exportMatters(format, filters);
@@ -680,8 +663,6 @@ export const useMatterStore = create<MatterState>()(
           throw error;
         }
       },
-      
-      // ==================== UI Actions ====================
       
       setSearchQuery: (query) => {
         set({ searchQuery: query, currentPage: 1 });

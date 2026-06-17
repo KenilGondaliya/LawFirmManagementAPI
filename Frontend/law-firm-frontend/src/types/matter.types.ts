@@ -1,22 +1,20 @@
-// src/types/matter.types.ts
-
 export interface Matter {
   id: number;
   uuid: string;
   matterNumber: string;
   title: string;
   description?: string;
-  status: 'OPEN' | 'PENDING' | 'CLOSED' | 'ARCHIVED';
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  status: string;
+  priority: string;
   openDate: string;
   pendingDate?: string;
   closedDate?: string;
   statuteOfLimitationsDate?: string;
   estimatedValue?: number;
-  billingMethod?: 'HOURLY' | 'FIXED' | 'CONTINGENCY' | 'RETAINER';
+  billingMethod?: string;
   hourlyRate?: number;
   fixedFee?: number;
-  matterTypeId?: number;
+  matterTypeId: number;
   matterTypeName?: string;
   matterTypeCategory?: string;
   originatingAdvocateId?: number;
@@ -31,16 +29,16 @@ export interface Matter {
   judicialDistrictName?: string;
   clientReference?: string;
   isConfidential: boolean;
-  parties: MatterParty[];
-  notes: MatterNote[];
   createdAt: string;
   updatedAt: string;
+  parties: MatterParty[];
+  notes: MatterNote[];
 }
 
 export interface MatterParty {
   id: number;
   contactId: number;
-  contactName: string;
+  contactName?: string;
   partyType: string;
   roleDescription?: string;
   isPrimary: boolean;
@@ -58,10 +56,9 @@ export interface MatterNote {
 export interface MatterType {
   id: number;
   name: string;
-  category: 'LITIGATION' | 'NON_LITIGATION' | 'CORPORATE' | 'FAMILY' | 'CRIMINAL' | 'CIVIL' | 'OTHER';
+  category: string;
   description?: string;
   isActive: boolean;
-  createdAt: string;
 }
 
 export interface PracticeArea {
@@ -70,7 +67,6 @@ export interface PracticeArea {
   description?: string;
   color?: string;
   isActive: boolean;
-  createdAt: string;
 }
 
 export interface Court {
@@ -83,7 +79,6 @@ export interface Court {
   country?: string;
   phone?: string;
   email?: string;
-  createdAt: string;
 }
 
 export interface JudicialDistrict {
@@ -91,7 +86,11 @@ export interface JudicialDistrict {
   name: string;
   state?: string;
   description?: string;
-  createdAt: string;
+}
+
+export interface State {
+  id: string;
+  name: string;
 }
 
 export interface MatterStats {
@@ -127,9 +126,9 @@ export interface MatterTask {
   id: number;
   title: string;
   dueDate?: string;
-  statusName: string;
+  statusName?: string;
   statusColor?: string;
-  priorityName: string;
+  priorityName?: string;
   priorityColor?: string;
   completedAt?: string;
 }
@@ -150,7 +149,7 @@ export interface MatterBill {
   totalAmount: number;
   balanceDue: number;
   dueDate: string;
-  statusName: string;
+  statusName?: string;
   statusColor?: string;
 }
 
@@ -193,7 +192,7 @@ export interface CreateMatterData {
   courtId?: number;
   judicialDistrictId?: number;
   clientReference?: string;
-  isConfidential?: boolean;
+  isConfidential: boolean;
   parties?: AddMatterParty[];
 }
 
@@ -201,19 +200,19 @@ export interface AddMatterParty {
   contactId: number;
   partyType: string;
   roleDescription?: string;
-  isPrimary?: boolean;
+  isPrimary: boolean;
 }
 
 export interface AddMatterNote {
   note: string;
-  isPrivate?: boolean;
+  isPrivate: boolean;
 }
 
 export interface AddTimeEntry {
   date: string;
   duration: number;
   description: string;
-  billable?: boolean;
+  billable: boolean;
   billingRate?: number;
 }
 
@@ -253,4 +252,12 @@ export interface ImportResult {
 export interface ImportError {
   row: number;
   error: string;
+}
+
+export interface ActivityLog {
+  id: number;
+  action: string;
+  description: string;
+  userName?: string;
+  createdAt: string;
 }

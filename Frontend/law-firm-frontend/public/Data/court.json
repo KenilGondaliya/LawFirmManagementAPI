@@ -1,0 +1,421 @@
+{
+  "courts": [
+    {
+      "id": 1,
+      "name": "Supreme Court of India",
+      "level": "Supreme Court",
+      "address": "Tilak Marg, New Delhi",
+      "city": "New Delhi",
+      "state": "Delhi",
+      "country": "India",
+      "phone": "011-23388900",
+      "email": "supremecourt@nic.in"
+    },
+    {
+      "id": 2,
+      "name": "High Court of Delhi",
+      "level": "High Court",
+      "address": "Sher Shah Road, New Delhi",
+      "city": "New Delhi",
+      "state": "Delhi",
+      "country": "India",
+      "phone": "011-23384233",
+      "email": "delhihc@nic.in"
+    },
+    {
+      "id": 3,
+      "name": "District Court Tis Hazari",
+      "level": "District Court",
+      "address": "Tis Hazari, Delhi",
+      "city": "Delhi",
+      "state": "Delhi",
+      "country": "India",
+      "phone": "011-23952101",
+      "email": "distt.court.delhi@nic.in"
+    },
+    {
+      "id": 4,
+      "name": "Patiala House Court",
+      "level": "District Court",
+      "address": "Patiala House, New Delhi",
+      "city": "New Delhi",
+      "state": "Delhi",
+      "country": "India",
+      "phone": "011-23384000",
+      "email": null
+    },
+    {
+      "id": 5,
+      "name": "Rohini District Court",
+      "level": "District Court",
+      "address": "Rohini, Delhi",
+      "city": "Delhi",
+      "state": "Delhi",
+      "country": "India",
+      "phone": "011-27563600",
+      "email": null
+    },
+    {
+      "id": 6,
+      "name": "Karkardooma Court",
+      "level": "District Court",
+      "address": "Karkardooma, Delhi",
+      "city": "Delhi",
+      "state": "Delhi",
+      "country": "India",
+      "phone": "011-22375133",
+      "email": null
+    },
+    {
+      "id": 7,
+      "name": "Saket District Court",
+      "level": "District Court",
+      "address": "Saket, New Delhi",
+      "city": "New Delhi",
+      "state": "Delhi",
+      "country": "India",
+      "phone": "011-29521801",
+      "email": null
+    },
+    {
+      "id": 8,
+      "name": "Dwarka District Court",
+      "level": "District Court",
+      "address": "Dwarka, New Delhi",
+      "city": "New Delhi",
+      "state": "Delhi",
+      "country": "India",
+      "phone": "011-25078601",
+      "email": null
+    },
+    {
+      "id": 9,
+      "name": "Bombay High Court",
+      "level": "High Court",
+      "address": "Fort, Mumbai",
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "country": "India",
+      "phone": "022-22612602",
+      "email": "bombayhc@nic.in"
+    },
+    {
+      "id": 10,
+      "name": "Calcutta High Court",
+      "level": "High Court",
+      "address": "High Court Building, Kolkata",
+      "city": "Kolkata",
+      "state": "West Bengal",
+      "country": "India",
+      "phone": "033-22561800",
+      "email": "calcuttahc@nic.in"
+    },
+    {
+      "id": 11,
+      "name": "Madras High Court",
+      "level": "High Court",
+      "address": "High Court Buildings, Chennai",
+      "city": "Chennai",
+      "state": "Tamil Nadu",
+      "country": "India",
+      "phone": "044-25305000",
+      "email": "madrashc@nic.in"
+    },
+    {
+      "id": 12,
+      "name": "Kerala High Court",
+      "level": "High Court",
+      "address": "Ernakulam, Kochi",
+      "city": "Kochi",
+      "state": "Kerala",
+      "country": "India",
+      "phone": "0484-2391000",
+      "email": "keralahc@nic.in"
+    },
+    {
+      "id": 13,
+      "name": "Punjab and Haryana High Court",
+      "level": "High Court",
+      "address": "Sector 1, Chandigarh",
+      "city": "Chandigarh",
+      "state": "Punjab",
+      "country": "India",
+      "phone": "0172-2741575",
+      "email": "phhc@nic.in"
+    },
+    {
+      "id": 14,
+      "name": "Allahabad High Court",
+      "level": "High Court",
+      "address": "High Court Building, Allahabad",
+      "city": "Allahabad",
+      "state": "Uttar Pradesh",
+      "country": "India",
+      "phone": "0532-2421150",
+      "email": "allahabadhc@nic.in"
+    },
+    {
+      "id": 15,
+      "name": "Patna High Court",
+      "level": "High Court",
+      "address": "High Court Road, Patna",
+      "city": "Patna",
+      "state": "Bihar",
+      "country": "India",
+      "phone": "0612-2221900",
+      "email": "patnahc@nic.in"
+    },
+    {
+      "id": 16,
+      "name": "Rajasthan High Court",
+      "level": "High Court",
+      "address": "Jodhpur",
+      "city": "Jodhpur",
+      "state": "Rajasthan",
+      "country": "India",
+      "phone": "0291-2548035",
+      "email": "rajasthanhc@nic.in"
+    },
+    {
+      "id": 17,
+      "name": "Gujarat High Court",
+      "level": "High Court",
+      "address": "Sarkhej-Gandhinagar Highway, Ahmedabad",
+      "city": "Ahmedabad",
+      "state": "Gujarat",
+      "country": "India",
+      "phone": "079-23210400",
+      "email": "gujarathc@nic.in"
+    },
+    {
+      "id": 18,
+      "name": "Karnataka High Court",
+      "level": "High Court",
+      "address": "High Court Building, Bengaluru",
+      "city": "Bengaluru",
+      "state": "Karnataka",
+      "country": "India",
+      "phone": "080-22824000",
+      "email": "karnatakahc@nic.in"
+    },
+    {
+      "id": 19,
+      "name": "Telangana High Court",
+      "level": "High Court",
+      "address": "Hyderabad",
+      "city": "Hyderabad",
+      "state": "Telangana",
+      "country": "India",
+      "phone": "040-23235000",
+      "email": "telanganahc@nic.in"
+    },
+    {
+      "id": 20,
+      "name": "Madhya Pradesh High Court",
+      "level": "High Court",
+      "address": "Jabalpur",
+      "city": "Jabalpur",
+      "state": "Madhya Pradesh",
+      "country": "India",
+      "phone": "0761-2622565",
+      "email": "mphc@nic.in"
+    },
+    {
+      "id": 21,
+      "name": "Orissa High Court",
+      "level": "High Court",
+      "address": "Cuttack",
+      "city": "Cuttack",
+      "state": "Odisha",
+      "country": "India",
+      "phone": "0671-2301146",
+      "email": "orissahc@nic.in"
+    },
+    {
+      "id": 22,
+      "name": "Chhattisgarh High Court",
+      "level": "High Court",
+      "address": "Bilaspur",
+      "city": "Bilaspur",
+      "state": "Chhattisgarh",
+      "country": "India",
+      "phone": "07752-242340",
+      "email": "chhattisgarhhc@nic.in"
+    },
+    {
+      "id": 23,
+      "name": "Jharkhand High Court",
+      "level": "High Court",
+      "address": "Ranchi",
+      "city": "Ranchi",
+      "state": "Jharkhand",
+      "country": "India",
+      "phone": "0651-2244231",
+      "email": "jharkhandhc@nic.in"
+    },
+    {
+      "id": 24,
+      "name": "District Court Ananthapur",
+      "level": "District Court",
+      "address": "Ananthapur",
+      "city": "Ananthapur",
+      "state": "Andhra Pradesh",
+      "country": "India",
+      "phone": null,
+      "email": null
+    },
+    {
+      "id": 25,
+      "name": "District Court Chittoor",
+      "level": "District Court",
+      "address": "Chittoor",
+      "city": "Chittoor",
+      "state": "Andhra Pradesh",
+      "country": "India",
+      "phone": null,
+      "email": null
+    },
+    {
+      "id": 26,
+      "name": "District Court Guntur",
+      "level": "District Court",
+      "address": "Guntur",
+      "city": "Guntur",
+      "state": "Andhra Pradesh",
+      "country": "India",
+      "phone": null,
+      "email": null
+    },
+    {
+      "id": 27,
+      "name": "District Court Kadapa",
+      "level": "District Court",
+      "address": "Kadapa",
+      "city": "Kadapa",
+      "state": "Andhra Pradesh",
+      "country": "India",
+      "phone": null,
+      "email": null
+    },
+    {
+      "id": 28,
+      "name": "District Court Kurnool",
+      "level": "District Court",
+      "address": "Kurnool",
+      "city": "Kurnool",
+      "state": "Andhra Pradesh",
+      "country": "India",
+      "phone": null,
+      "email": null
+    },
+    {
+      "id": 29,
+      "name": "District Court Nellore",
+      "level": "District Court",
+      "address": "Nellore",
+      "city": "Nellore",
+      "state": "Andhra Pradesh",
+      "country": "India",
+      "phone": null,
+      "email": null
+    }
+  ],
+  "judicialDistricts": [
+    {
+      "id": 1,
+      "name": "Ananthapur District",
+      "state": "Andhra Pradesh",
+      "description": "Judicial district covering Ananthapur area"
+    },
+    {
+      "id": 2,
+      "name": "Chittoor District",
+      "state": "Andhra Pradesh",
+      "description": "Judicial district covering Chittoor area"
+    },
+    {
+      "id": 3,
+      "name": "Guntur District",
+      "state": "Andhra Pradesh",
+      "description": "Judicial district covering Guntur area"
+    },
+    {
+      "id": 4,
+      "name": "Kadapa District",
+      "state": "Andhra Pradesh",
+      "description": "Judicial district covering Kadapa area"
+    },
+    {
+      "id": 5,
+      "name": "Kurnool District",
+      "state": "Andhra Pradesh",
+      "description": "Judicial district covering Kurnool area"
+    },
+    {
+      "id": 6,
+      "name": "Nellore District",
+      "state": "Andhra Pradesh",
+      "description": "Judicial district covering Nellore area"
+    },
+    {
+      "id": 7,
+      "name": "Central Delhi District",
+      "state": "Delhi",
+      "description": "Central Delhi judicial district"
+    },
+    {
+      "id": 8,
+      "name": "North Delhi District",
+      "state": "Delhi",
+      "description": "North Delhi judicial district"
+    },
+    {
+      "id": 9,
+      "name": "South Delhi District",
+      "state": "Delhi",
+      "description": "South Delhi judicial district"
+    },
+    {
+      "id": 10,
+      "name": "East Delhi District",
+      "state": "Delhi",
+      "description": "East Delhi judicial district"
+    },
+    {
+      "id": 11,
+      "name": "West Delhi District",
+      "state": "Delhi",
+      "description": "West Delhi judicial district"
+    },
+    {
+      "id": 12,
+      "name": "Mumbai District",
+      "state": "Maharashtra",
+      "description": "Mumbai judicial district"
+    },
+    {
+      "id": 13,
+      "name": "Kolkata District",
+      "state": "West Bengal",
+      "description": "Kolkata judicial district"
+    },
+    {
+      "id": 14,
+      "name": "Chennai District",
+      "state": "Tamil Nadu",
+      "description": "Chennai judicial district"
+    },
+    {
+      "id": 15,
+      "name": "Kochi District",
+      "state": "Kerala",
+      "description": "Kochi judicial district"
+    },
+    {
+      "id": 16,
+      "name": "Chandigarh District",
+      "state": "Chandigarh",
+      "description": "Chandigarh judicial district"
+    }
+  ]
+}
