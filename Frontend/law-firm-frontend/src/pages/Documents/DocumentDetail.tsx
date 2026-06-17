@@ -1,7 +1,7 @@
 // src/pages/Documents/DocumentDetail.tsx - Complete Fixed Version
 
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeftIcon,
   PencilIcon,
@@ -18,27 +18,27 @@ import {
   UserIcon,
   EnvelopeIcon,
   FolderIcon,
-} from '@heroicons/react/24/outline';
-import { useDocumentStore } from '../../stores/documentStore';
-import { Button } from '../../components/UI/Button';
-import { Card } from '../../components/UI/Card';
-import { LoadingSpinner } from '../../components/Common/LoadingSpinner';
-import { Modal } from '../../components/UI/Modal';
-import { Input } from '../../components/UI/Input';
-import toast from 'react-hot-toast';
-import { DownloadIcon } from 'lucide-react';
+} from "@heroicons/react/24/outline";
+import { useDocumentStore } from "../../stores/documentStore";
+import { Button } from "../../components/UI/Button";
+import { Card } from "../../components/UI/Card";
+import { LoadingSpinner } from "../../components/Common/LoadingSpinner";
+import { Modal } from "../../components/UI/Modal";
+import { Input } from "../../components/UI/Input";
+import toast from "react-hot-toast";
+import { DownloadIcon } from "lucide-react";
 
 export const DocumentDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { 
-    selectedDocument, 
+  const {
+    selectedDocument,
     summary,
     versions,
     comments,
-    isLoading, 
-    fetchDocumentById, 
-    deleteDocument, 
+    isLoading,
+    fetchDocumentById,
+    deleteDocument,
     downloadDocument,
     generateSummary,
     fetchVersions,
@@ -48,9 +48,9 @@ export const DocumentDetail: React.FC = () => {
     shareDocument,
     revokeShare,
     createVersion,
-    clearSelectedDocument 
+    clearSelectedDocument,
   } = useDocumentStore();
-  
+
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -58,15 +58,17 @@ export const DocumentDetail: React.FC = () => {
   const [showVersionModal, setShowVersionModal] = useState(false);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [isUploadingVersion, setIsUploadingVersion] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'versions' | 'comments'>('details');
+  const [activeTab, setActiveTab] = useState<
+    "details" | "versions" | "comments"
+  >("details");
   const [shareData, setShareData] = useState({
-    email: '',
-    permission: 'VIEW',
+    email: "",
+    permission: "VIEW",
     expiresInDays: 7,
   });
-  const [commentText, setCommentText] = useState('');
+  const [commentText, setCommentText] = useState("");
   const [versionFile, setVersionFile] = useState<File | null>(null);
-  const [changeSummary, setChangeSummary] = useState('');
+  const [changeSummary, setChangeSummary] = useState("");
 
   useEffect(() => {
     if (id) {
@@ -84,7 +86,7 @@ export const DocumentDetail: React.FC = () => {
     if (id) {
       const success = await deleteDocument(parseInt(id));
       if (success) {
-        navigate('/documents');
+        navigate("/documents");
       }
       setShowDeleteModal(false);
     }
@@ -115,10 +117,18 @@ export const DocumentDetail: React.FC = () => {
       if (result) {
         toast.success(`Document shared with ${shareData.email}`);
         setShowShareModal(false);
-        setShareData({ email: '', permission: 'VIEW', expiresInDays: 7 });
+        setShareData({ email: "", permission: "VIEW", expiresInDays: 7 });
+
+        // ✅ Notify user to check their shared documents
+        toast.success(
+          `An email notification has been sent to ${shareData.email}`,
+          {
+            duration: 5000,
+          },
+        );
       }
     } else {
-      toast.error('Please enter an email address');
+      toast.error("Please enter an email address");
     }
   };
 
@@ -126,8 +136,8 @@ export const DocumentDetail: React.FC = () => {
     if (id && commentText.trim()) {
       const result = await addComment(parseInt(id), commentText.trim());
       if (result) {
-        toast.success('Comment added successfully');
-        setCommentText('');
+        toast.success("Comment added successfully");
+        setCommentText("");
         setShowCommentModal(false);
         await fetchComments(parseInt(id));
       }
@@ -138,23 +148,27 @@ export const DocumentDetail: React.FC = () => {
     if (id && versionFile) {
       setIsUploadingVersion(true);
       try {
-        const result = await createVersion(parseInt(id), versionFile, changeSummary);
+        const result = await createVersion(
+          parseInt(id),
+          versionFile,
+          changeSummary,
+        );
         if (result) {
-          toast.success('New version uploaded successfully');
+          toast.success("New version uploaded successfully");
           setVersionFile(null);
-          setChangeSummary('');
+          setChangeSummary("");
           setShowVersionModal(false);
           await fetchDocumentById(parseInt(id));
           await fetchVersions(parseInt(id));
         }
       } catch (error) {
-        console.error('Failed to upload version:', error);
-        toast.error('Failed to upload new version');
+        console.error("Failed to upload version:", error);
+        toast.error("Failed to upload new version");
       } finally {
         setIsUploadingVersion(false);
       }
     } else {
-      toast.error('Please select a file');
+      toast.error("Please select a file");
     }
   };
 
@@ -165,11 +179,11 @@ export const DocumentDetail: React.FC = () => {
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   if (isLoading) {
@@ -184,7 +198,7 @@ export const DocumentDetail: React.FC = () => {
     return (
       <div className="text-center py-12">
         <p className="text-gray-500">Document not found</p>
-        <Button onClick={() => navigate('/documents')} className="mt-4">
+        <Button onClick={() => navigate("/documents")} className="mt-4">
           Back to Documents
         </Button>
       </div>
@@ -197,14 +211,18 @@ export const DocumentDetail: React.FC = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/documents')}
+            onClick={() => navigate("/documents")}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeftIcon className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{selectedDocument.title}</h1>
-            <p className="text-sm text-gray-500 mt-1">{selectedDocument.fileName}</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {selectedDocument.title}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {selectedDocument.fileName}
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -212,7 +230,10 @@ export const DocumentDetail: React.FC = () => {
             <DownloadIcon className="w-4 h-4 mr-2" />
             Download
           </Button>
-          <Button variant="outline" onClick={() => navigate(`/documents/${id}/edit`)}>
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/documents/${id}/edit`)}
+          >
             <PencilIcon className="w-4 h-4 mr-2" />
             Edit
           </Button>
@@ -227,31 +248,31 @@ export const DocumentDetail: React.FC = () => {
       <div className="border-b border-gray-200">
         <nav className="flex gap-8">
           <button
-            onClick={() => setActiveTab('details')}
+            onClick={() => setActiveTab("details")}
             className={`pb-3 px-1 text-sm font-medium transition-colors ${
-              activeTab === 'details'
-                ? 'text-primary-600 border-b-2 border-primary-600'
-                : 'text-gray-500 hover:text-gray-700'
+              activeTab === "details"
+                ? "text-primary-600 border-b-2 border-primary-600"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             Details
           </button>
           <button
-            onClick={() => setActiveTab('versions')}
+            onClick={() => setActiveTab("versions")}
             className={`pb-3 px-1 text-sm font-medium transition-colors ${
-              activeTab === 'versions'
-                ? 'text-primary-600 border-b-2 border-primary-600'
-                : 'text-gray-500 hover:text-gray-700'
+              activeTab === "versions"
+                ? "text-primary-600 border-b-2 border-primary-600"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             Versions ({versions.length})
           </button>
           <button
-            onClick={() => setActiveTab('comments')}
+            onClick={() => setActiveTab("comments")}
             className={`pb-3 px-1 text-sm font-medium transition-colors ${
-              activeTab === 'comments'
-                ? 'text-primary-600 border-b-2 border-primary-600'
-                : 'text-gray-500 hover:text-gray-700'
+              activeTab === "comments"
+                ? "text-primary-600 border-b-2 border-primary-600"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             Comments ({comments.length})
@@ -260,49 +281,67 @@ export const DocumentDetail: React.FC = () => {
       </div>
 
       {/* Content - Details Tab */}
-      {activeTab === 'details' && (
+      {activeTab === "details" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Info */}
           <div className="lg:col-span-2 space-y-6">
             <Card>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Document Information
+              </h3>
               <div className="space-y-3">
                 <div className="flex justify-between py-2 border-b border-gray-100">
                   <span className="text-gray-500">File Name</span>
-                  <span className="text-gray-900">{selectedDocument.fileName}</span>
+                  <span className="text-gray-900">
+                    {selectedDocument.fileName}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-gray-100">
                   <span className="text-gray-500">File Size</span>
-                  <span className="text-gray-900">{formatFileSize(selectedDocument.fileSize)}</span>
+                  <span className="text-gray-900">
+                    {formatFileSize(selectedDocument.fileSize)}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-gray-100">
                   <span className="text-gray-500">File Type</span>
-                  <span className="text-gray-900">{selectedDocument.mimeType || 'Unknown'}</span>
+                  <span className="text-gray-900">
+                    {selectedDocument.mimeType || "Unknown"}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-gray-100">
                   <span className="text-gray-500">Version</span>
-                  <span className="text-gray-900">v{selectedDocument.version}</span>
+                  <span className="text-gray-900">
+                    v{selectedDocument.version}
+                  </span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-gray-100">
                   <span className="text-gray-500">Uploaded</span>
-                  <span className="text-gray-900">{new Date(selectedDocument.uploadedAt).toLocaleString()}</span>
+                  <span className="text-gray-900">
+                    {new Date(selectedDocument.uploadedAt).toLocaleString()}
+                  </span>
                 </div>
                 {selectedDocument.matterTitle && (
                   <div className="flex justify-between py-2 border-b border-gray-100">
                     <span className="text-gray-500">Related Matter</span>
-                    <span className="text-gray-900">{selectedDocument.matterTitle}</span>
+                    <span className="text-gray-900">
+                      {selectedDocument.matterTitle}
+                    </span>
                   </div>
                 )}
                 {selectedDocument.contactName && (
                   <div className="flex justify-between py-2 border-b border-gray-100">
                     <span className="text-gray-500">Related Contact</span>
-                    <span className="text-gray-900">{selectedDocument.contactName}</span>
+                    <span className="text-gray-900">
+                      {selectedDocument.contactName}
+                    </span>
                   </div>
                 )}
                 {selectedDocument.documentTypeName && (
                   <div className="flex justify-between py-2">
                     <span className="text-gray-500">Document Type</span>
-                    <span className="text-gray-900">{selectedDocument.documentTypeName}</span>
+                    <span className="text-gray-900">
+                      {selectedDocument.documentTypeName}
+                    </span>
                   </div>
                 )}
               </div>
@@ -310,8 +349,12 @@ export const DocumentDetail: React.FC = () => {
 
             {selectedDocument.description && (
               <Card>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Description</h3>
-                <p className="text-gray-700 whitespace-pre-wrap">{selectedDocument.description}</p>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Description
+                </h3>
+                <p className="text-gray-700 whitespace-pre-wrap">
+                  {selectedDocument.description}
+                </p>
               </Card>
             )}
           </div>
@@ -331,29 +374,48 @@ export const DocumentDetail: React.FC = () => {
 
             {/* AI Summary Card */}
             <Card>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Summary</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                AI Summary
+              </h3>
               {summary ? (
                 <div>
-                  <p className="text-gray-700 text-sm mb-3">{summary.summary}</p>
+                  <p className="text-gray-700 text-sm mb-3">
+                    {summary.summary}
+                  </p>
                   {summary.keyPoints && summary.keyPoints.length > 0 && (
                     <div className="mt-3">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Key Points:</p>
+                      <p className="text-sm font-medium text-gray-700 mb-2">
+                        Key Points:
+                      </p>
                       <ul className="list-disc list-inside space-y-1">
                         {summary.keyPoints.slice(0, 5).map((point, i) => (
-                          <li key={i} className="text-sm text-gray-600">{point}</li>
+                          <li key={i} className="text-sm text-gray-600">
+                            {point}
+                          </li>
                         ))}
                       </ul>
                     </div>
                   )}
-                  <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowSummary(true)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => setShowSummary(true)}
+                  >
                     <EyeIcon className="w-4 h-4 mr-2" />
                     View Full Summary
                   </Button>
                 </div>
               ) : (
                 <div className="text-center py-4">
-                  <p className="text-gray-500 text-sm mb-3">Generate an AI summary of this document</p>
-                  <Button onClick={handleGenerateSummary} isLoading={isGeneratingSummary} size="sm">
+                  <p className="text-gray-500 text-sm mb-3">
+                    Generate an AI summary of this document
+                  </p>
+                  <Button
+                    onClick={handleGenerateSummary}
+                    isLoading={isGeneratingSummary}
+                    size="sm"
+                  >
                     Generate Summary
                   </Button>
                 </div>
@@ -362,13 +424,23 @@ export const DocumentDetail: React.FC = () => {
 
             {/* Actions Card */}
             <Card>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Actions
+              </h3>
               <div className="space-y-2">
-                <Button variant="outline" fullWidth onClick={() => setShowShareModal(true)}>
+                <Button
+                  variant="outline"
+                  fullWidth
+                  onClick={() => setShowShareModal(true)}
+                >
                   <ShareIcon className="w-4 h-4 mr-2" />
                   Share Document
                 </Button>
-                <Button variant="outline" fullWidth onClick={() => setShowVersionModal(true)}>
+                <Button
+                  variant="outline"
+                  fullWidth
+                  onClick={() => setShowVersionModal(true)}
+                >
                   <DocumentDuplicateIcon className="w-4 h-4 mr-2" />
                   Upload New Version
                 </Button>
@@ -376,7 +448,11 @@ export const DocumentDetail: React.FC = () => {
                   <FolderIcon className="w-4 h-4 mr-2" />
                   Move to Folder
                 </Button>
-                <Button variant="outline" fullWidth onClick={() => setShowCommentModal(true)}>
+                <Button
+                  variant="outline"
+                  fullWidth
+                  onClick={() => setShowCommentModal(true)}
+                >
                   <ChatBubbleLeftRightIcon className="w-4 h-4 mr-2" />
                   Add Comment
                 </Button>
@@ -387,11 +463,17 @@ export const DocumentDetail: React.FC = () => {
       )}
 
       {/* Content - Versions Tab */}
-      {activeTab === 'versions' && (
+      {activeTab === "versions" && (
         <Card>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Version History</h3>
-            <Button variant="outline" size="sm" onClick={() => setShowVersionModal(true)}>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Version History
+            </h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowVersionModal(true)}
+            >
               <PlusIcon className="w-4 h-4 mr-2" />
               Upload New Version
             </Button>
@@ -399,19 +481,29 @@ export const DocumentDetail: React.FC = () => {
           {versions.length > 0 ? (
             <div className="space-y-3">
               {versions.map((version) => (
-                <div key={version.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                <div
+                  key={version.id}
+                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-gray-100 rounded-lg">
                       <DocumentIcon className="w-6 h-6 text-gray-500" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">Version {version.version}</p>
-                      <p className="text-sm text-gray-500">{version.fileName}</p>
+                      <p className="font-medium text-gray-900">
+                        Version {version.version}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {version.fileName}
+                      </p>
                       {version.changeSummary && (
-                        <p className="text-sm text-gray-600">{version.changeSummary}</p>
+                        <p className="text-sm text-gray-600">
+                          {version.changeSummary}
+                        </p>
                       )}
                       <p className="text-xs text-gray-400 mt-1">
-                        {formatFileSize(version.fileSize)} • Uploaded {new Date(version.uploadedAt).toLocaleString()}
+                        {formatFileSize(version.fileSize)} • Uploaded{" "}
+                        {new Date(version.uploadedAt).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -425,7 +517,11 @@ export const DocumentDetail: React.FC = () => {
             <div className="text-center py-12">
               <ClockIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No versions available</p>
-              <Button variant="outline" className="mt-4" onClick={() => setShowVersionModal(true)}>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setShowVersionModal(true)}
+              >
                 <PlusIcon className="w-4 h-4 mr-2" />
                 Upload New Version
               </Button>
@@ -435,11 +531,15 @@ export const DocumentDetail: React.FC = () => {
       )}
 
       {/* Content - Comments Tab */}
-      {activeTab === 'comments' && (
+      {activeTab === "comments" && (
         <Card>
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Comments</h3>
-            <Button variant="outline" size="sm" onClick={() => setShowCommentModal(true)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCommentModal(true)}
+            >
               <PlusIcon className="w-4 h-4 mr-2" />
               Add Comment
             </Button>
@@ -452,14 +552,22 @@ export const DocumentDetail: React.FC = () => {
                     <div>
                       <div className="flex items-center gap-2">
                         <UserIcon className="w-4 h-4 text-gray-400" />
-                        <span className="font-medium text-gray-900">{comment.userName || 'User'}</span>
-                        <span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleString()}</span>
+                        <span className="font-medium text-gray-900">
+                          {comment.userName || "User"}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {new Date(comment.createdAt).toLocaleString()}
+                        </span>
                       </div>
                       <p className="text-gray-700 mt-1">{comment.comment}</p>
                     </div>
                     <button
                       onClick={() => {
-                        if (window.confirm('Are you sure you want to delete this comment?')) {
+                        if (
+                          window.confirm(
+                            "Are you sure you want to delete this comment?",
+                          )
+                        ) {
                           deleteComment(comment.id);
                         }
                       }}
@@ -475,7 +583,11 @@ export const DocumentDetail: React.FC = () => {
             <div className="text-center py-12">
               <ChatBubbleLeftRightIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No comments yet</p>
-              <Button variant="outline" className="mt-4" onClick={() => setShowCommentModal(true)}>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setShowCommentModal(true)}
+              >
                 <PlusIcon className="w-4 h-4 mr-2" />
                 Add Comment
               </Button>
@@ -485,24 +597,36 @@ export const DocumentDetail: React.FC = () => {
       )}
 
       {/* Share Modal */}
-      <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="Share Document" size="md">
+      <Modal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        title="Share Document"
+        size="md"
+      >
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
-            Share this document with others by email. They will receive a link to access the document.
+            Share this document with others by email. They will receive a link
+            to access the document.
           </p>
           <Input
             label="Email Address"
             type="email"
             value={shareData.email}
-            onChange={(e) => setShareData({ ...shareData, email: e.target.value })}
+            onChange={(e) =>
+              setShareData({ ...shareData, email: e.target.value })
+            }
             placeholder="Enter email address"
             icon={<EnvelopeIcon className="w-4 h-4" />}
           />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Permission</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Permission
+            </label>
             <select
               value={shareData.permission}
-              onChange={(e) => setShareData({ ...shareData, permission: e.target.value })}
+              onChange={(e) =>
+                setShareData({ ...shareData, permission: e.target.value })
+              }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"
             >
               <option value="VIEW">View Only</option>
@@ -511,10 +635,17 @@ export const DocumentDetail: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Expires In (Days)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Expires In (Days)
+            </label>
             <select
               value={shareData.expiresInDays}
-              onChange={(e) => setShareData({ ...shareData, expiresInDays: parseInt(e.target.value) })}
+              onChange={(e) =>
+                setShareData({
+                  ...shareData,
+                  expiresInDays: parseInt(e.target.value),
+                })
+              }
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:outline-none"
             >
               <option value={1}>1 Day</option>
@@ -526,7 +657,9 @@ export const DocumentDetail: React.FC = () => {
             </select>
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-            <Button variant="outline" onClick={() => setShowShareModal(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowShareModal(false)}>
+              Cancel
+            </Button>
             <Button onClick={handleShareDocument} disabled={!shareData.email}>
               Share Document
             </Button>
@@ -535,23 +668,35 @@ export const DocumentDetail: React.FC = () => {
       </Modal>
 
       {/* Upload Version Modal */}
-      <Modal isOpen={showVersionModal} onClose={() => setShowVersionModal(false)} title="Upload New Version" size="md">
+      <Modal
+        isOpen={showVersionModal}
+        onClose={() => setShowVersionModal(false)}
+        title="Upload New Version"
+        size="md"
+      >
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
-            Upload a new version of this document. The current version will be preserved in the version history.
+            Upload a new version of this document. The current version will be
+            preserved in the version history.
           </p>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select File *
             </label>
             <div className="flex items-center justify-center w-full">
-              <label className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
-                versionFile ? 'border-green-500 bg-green-50' : 'border-gray-300'
-              }`}>
+              <label
+                className={`flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
+                  versionFile
+                    ? "border-green-500 bg-green-50"
+                    : "border-gray-300"
+                }`}
+              >
                 <div className="flex flex-col items-center justify-center pt-4 pb-5">
-                  <DocumentIcon className={`w-6 h-6 mb-1 ${versionFile ? 'text-green-500' : 'text-gray-400'}`} />
+                  <DocumentIcon
+                    className={`w-6 h-6 mb-1 ${versionFile ? "text-green-500" : "text-gray-400"}`}
+                  />
                   <p className="text-sm text-gray-500">
-                    {versionFile ? versionFile.name : 'Click to select a file'}
+                    {versionFile ? versionFile.name : "Click to select a file"}
                   </p>
                   {versionFile && (
                     <p className="text-xs text-gray-400 mt-1">
@@ -568,7 +713,9 @@ export const DocumentDetail: React.FC = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Change Summary</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Change Summary
+            </label>
             <textarea
               value={changeSummary}
               onChange={(e) => setChangeSummary(e.target.value)}
@@ -578,16 +725,19 @@ export const DocumentDetail: React.FC = () => {
             />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-            <Button variant="outline" onClick={() => {
-              setShowVersionModal(false);
-              setVersionFile(null);
-              setChangeSummary('');
-            }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowVersionModal(false);
+                setVersionFile(null);
+                setChangeSummary("");
+              }}
+            >
               Cancel
             </Button>
-            <Button 
-              onClick={handleUploadVersion} 
-              isLoading={isUploadingVersion} 
+            <Button
+              onClick={handleUploadVersion}
+              isLoading={isUploadingVersion}
               disabled={!versionFile}
             >
               Upload Version
@@ -597,10 +747,17 @@ export const DocumentDetail: React.FC = () => {
       </Modal>
 
       {/* Comment Modal */}
-      <Modal isOpen={showCommentModal} onClose={() => setShowCommentModal(false)} title="Add Comment" size="md">
+      <Modal
+        isOpen={showCommentModal}
+        onClose={() => setShowCommentModal(false)}
+        title="Add Comment"
+        size="md"
+      >
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Comment
+            </label>
             <textarea
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
@@ -610,7 +767,12 @@ export const DocumentDetail: React.FC = () => {
             />
           </div>
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-            <Button variant="outline" onClick={() => setShowCommentModal(false)}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowCommentModal(false)}
+            >
+              Cancel
+            </Button>
             <Button onClick={handleAddComment} disabled={!commentText.trim()}>
               Add Comment
             </Button>
@@ -619,7 +781,12 @@ export const DocumentDetail: React.FC = () => {
       </Modal>
 
       {/* Summary Modal */}
-      <Modal isOpen={showSummary} onClose={() => setShowSummary(false)} title="Document Summary" size="lg">
+      <Modal
+        isOpen={showSummary}
+        onClose={() => setShowSummary(false)}
+        title="Document Summary"
+        size="lg"
+      >
         <div className="space-y-4">
           {summary && (
             <>
@@ -632,7 +799,9 @@ export const DocumentDetail: React.FC = () => {
                   <h4 className="font-medium text-gray-900 mb-2">Key Points</h4>
                   <ul className="list-disc list-inside space-y-1">
                     {summary.keyPoints.map((point, i) => (
-                      <li key={i} className="text-gray-700">{point}</li>
+                      <li key={i} className="text-gray-700">
+                        {point}
+                      </li>
                     ))}
                   </ul>
                 </div>
@@ -651,10 +820,16 @@ export const DocumentDetail: React.FC = () => {
       </Modal>
 
       {/* Delete Modal */}
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Document">
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Delete Document"
+      >
         <div className="space-y-4">
           <p className="text-gray-600">
-            Are you sure you want to delete "<strong>{selectedDocument.title}</strong>"? This action cannot be undone.
+            Are you sure you want to delete "
+            <strong>{selectedDocument.title}</strong>"? This action cannot be
+            undone.
           </p>
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setShowDeleteModal(false)}>

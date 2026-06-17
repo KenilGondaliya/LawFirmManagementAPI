@@ -63,7 +63,7 @@ namespace LawFirmAPI.Services
 
                 await smtp.SendAsync(email);
                 await smtp.DisconnectAsync(true);
-                
+
                 Console.WriteLine($"✅ Email sent successfully to: {toEmail}");
             }
             catch (Exception ex)
@@ -398,6 +398,193 @@ namespace LawFirmAPI.Services
         public async Task SendRawEmail(string toEmail, string subject, string body, string fromName, string fromEmail)
         {
             await SendEmail(toEmail, subject, body);
+        }
+
+        public async Task SendDocumentShareEmail(string toEmail, string documentTitle, string sharedByName, string shareToken, string permission, int? expiresInDays)
+        {
+            var viewLink = $"{_frontendUrl}/documents/shared";
+            var downloadLink = $"{_frontendUrl}/documents/shared/download/{shareToken}";
+
+            var permissionText = permission switch
+            {
+                "VIEW" => "View Only",
+                "EDIT" => "Edit",
+                "COMMENT" => "Comment",
+                _ => "View"
+            };
+
+            var expiresText = expiresInDays.HasValue
+                ? $"This link will expire in {expiresInDays.Value} days."
+                : "This link will never expire.";
+
+            var subject = $"{sharedByName} shared a document with you on Praava";
+
+            var htmlBody = $@"
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset='UTF-8'>
+                    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+                    <title>Document Shared</title>
+                    <style>
+                        body {{
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                            line-height: 1.6;
+                            color: #1f2937;
+                            max-width: 600px;
+                            margin: 0 auto;
+                            padding: 20px;
+                            background-color: #f9fafb;
+                        }}
+                        .container {{
+                            background: #ffffff;
+                            border-radius: 12px;
+                            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                            overflow: hidden;
+                        }}
+                        .header {{
+                            background: linear-gradient(135deg, #4F46E5, #7C3AED);
+                            color: white;
+                            padding: 30px 25px;
+                            text-align: center;
+                        }}
+                        .header h1 {{
+                            margin: 0;
+                            font-size: 24px;
+                            font-weight: 700;
+                        }}
+                        .header p {{
+                            margin: 5px 0 0;
+                            opacity: 0.9;
+                            font-size: 14px;
+                        }}
+                        .content {{
+                            padding: 30px 25px;
+                        }}
+                        .info-box {{
+                            background: #f3f4f6;
+                            padding: 15px 20px;
+                            border-radius: 8px;
+                            margin: 15px 0 20px;
+                            border-left: 4px solid #4F46E5;
+                        }}
+                        .info-box p {{
+                            margin: 6px 0;
+                        }}
+                        .permission-badge {{
+                            display: inline-block;
+                            padding: 4px 12px;
+                            background: #EEF2FF;
+                            color: #4F46E5;
+                            border-radius: 20px;
+                            font-size: 12px;
+                            font-weight: 600;
+                        }}
+                        .button {{
+                            display: inline-block;
+                            padding: 12px 30px;
+                            background: #4F46E5;
+                            color: white;
+                            text-decoration: none;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            margin: 5px 5px;
+                            transition: background 0.2s;
+                        }}
+                        .button:hover {{
+                            background: #4338CA;
+                        }}
+                        .button-secondary {{
+                            display: inline-block;
+                            padding: 12px 30px;
+                            background: transparent;
+                            color: #4F46E5;
+                            text-decoration: none;
+                            border: 2px solid #4F46E5;
+                            border-radius: 8px;
+                            font-weight: 600;
+                            margin: 5px 5px;
+                            transition: all 0.2s;
+                        }}
+                        .button-secondary:hover {{
+                            background: #4F46E5;
+                            color: white;
+                        }}
+                        .footer {{
+                            text-align: center;
+                            padding: 20px 25px;
+                            color: #6b7280;
+                            font-size: 12px;
+                            border-top: 1px solid #e5e7eb;
+                            background: #f9fafb;
+                        }}
+                        .footer a {{
+                            color: #4F46E5;
+                            text-decoration: none;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <div class='container'>
+                        <div class='header'>
+                            <h1>📄 Document Shared</h1>
+                            <p>Praava Legal Practice Management</p>
+                        </div>
+                        
+                        <div class='content'>
+                            <p style='font-size: 16px; margin-top: 0;'>
+                                <strong>Hello,</strong>
+                            </p>
+                            
+                            <p>
+                                <strong style='color: #4F46E5;'>{sharedByName}</strong> has shared a document with you on Praava.
+                            </p>
+                            
+                            <div class='info-box'>
+                                <p><strong>📁 Document:</strong> {documentTitle}</p>
+                                <p><strong>🔑 Permission:</strong> <span class='permission-badge'>{permissionText}</span></p>
+                                <p><strong>📅 Shared:</strong> {DateTime.UtcNow.ToString("MMMM dd, yyyy 'at' h:mm tt")} UTC</p>
+                            </div>
+                            
+                            <div style='text-align: center; padding: 15px 0;'>
+                                <a href='{viewLink}' class='button'>
+                                    📂 View All Shared Documents
+                                </a>
+                                <br/>
+                                <a href='{downloadLink}' class='button-secondary'>
+                                    ⬇️ Download Document
+                                </a>
+                            </div>
+                            
+                            <div style='background: #fefce8; padding: 15px; border-radius: 8px; border: 1px solid #fde68a; margin: 15px 0;'>
+                                <p style='margin: 0; font-size: 14px; color: #92400e;'>
+                                    <strong>ℹ️ About this share:</strong>
+                                </p>
+                                <ul style='margin: 5px 0 0; padding-left: 20px; font-size: 14px; color: #78350f;'>
+                                    <li>Permission: <strong>{permissionText}</strong></li>
+                                    <li>{expiresText}</li>
+                                    <li>You can view and manage all shared documents in your dashboard.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class='footer'>
+                            <p>
+                                This is an automated message from Praava Legal Practice Management.
+                                If you didn't expect this, you can ignore this email.
+                            </p>
+                            <p style='margin-top: 10px;'>
+                                © {DateTime.UtcNow.Year} Praava. All rights reserved.
+                            </p>
+                            <p style='margin-top: 5px;'>
+                                <a href='{_frontendUrl}'>Visit Praava</a>
+                            </p>
+                        </div>
+                    </div>
+                </body>
+                </html>";
+
+            await SendEmail(toEmail, subject, htmlBody);
         }
     }
 }

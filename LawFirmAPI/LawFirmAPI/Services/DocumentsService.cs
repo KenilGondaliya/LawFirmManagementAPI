@@ -1,3 +1,9 @@
+// Services/DocumentsService.cs - Complete Rewritten Version
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using LawFirmAPI.Data;
@@ -15,11 +21,11 @@ namespace LawFirmAPI.Services
         Task<bool> DeleteDocument(long id, long firmId);
         Task<byte[]> DownloadDocument(long id, long firmId);
         Task<DocumentDto> UpdateDocument(long id, long firmId, UpdateDocumentDto updateDto);
-        
+
         // Document Versions
         Task<DocumentVersionDto> CreateVersion(long documentId, long firmId, long userId, IFormFile file, string? changeSummary);
         Task<List<DocumentVersionDto>> GetDocumentVersions(long documentId, long firmId);
-        
+
         // Document Sharing
         Task<DocumentShareDto> ShareDocument(long documentId, long firmId, long userId, long? sharedWithUserId, string? sharedWithEmail, string permission, int? expiresInDays);
         Task<bool> RevokeShare(long shareId, long firmId);
@@ -27,25 +33,25 @@ namespace LawFirmAPI.Services
         Task<List<SharedDocumentDto>> GetSharedByMe(long userId, long firmId);
         Task<SharedDocumentDownloadDto?> DownloadSharedDocument(string shareToken);
         Task<SharedDocumentDetailsDto?> GetSharedDocumentDetails(string shareToken);
-        
+
         // Document Comments
         Task<DocumentCommentDto> AddComment(long documentId, long firmId, long userId, string comment);
         Task<bool> DeleteComment(long commentId, long firmId);
         Task<List<DocumentCommentDto>> GetDocumentComments(long documentId, long firmId);
-        
+
         // AI Features
         Task<DocumentSummaryDto> GetDocumentSummary(long documentId, long firmId);
         Task<DocumentSummaryDto> GenerateSummary(long documentId, long firmId);
-        
+
         // Document Types
         Task<List<DocumentTypeDto>> GetDocumentTypes(long firmId);
         Task<DocumentTypeDto> CreateDocumentType(long firmId, CreateDocumentTypeDto createDto);
-        
+
         // Folders
         Task<List<FolderDto>> GetFolders(long firmId, long? parentFolderId);
         Task<FolderDto> CreateFolder(long firmId, long userId, CreateFolderDto createDto);
         Task<bool> MoveDocument(long documentId, long firmId, long? folderId);
-        
+
         // Templates
         Task<List<TemplateDto>> GetTemplates(long firmId, string? category);
         Task<TemplateDto> CreateTemplate(long firmId, long userId, CreateTemplateDto createDto);
@@ -57,12 +63,15 @@ namespace LawFirmAPI.Services
         private readonly ApplicationDbContext _context;
         private readonly IFileService _fileService;
         private readonly IAISummaryService _aiSummaryService;
+        private readonly IEmailService _emailService;
 
-        public DocumentsService(ApplicationDbContext context, IFileService fileService, IAISummaryService aiSummaryService)
+        public DocumentsService(ApplicationDbContext context, IFileService fileService, IAISummaryService aiSummaryService, IEmailService emailService)
         {
             _context = context;
             _fileService = fileService;
             _aiSummaryService = aiSummaryService;
+            _emailService = emailService;
+
         }
 
         // ==================== Basic Document Operations ====================
@@ -272,11 +281,36 @@ namespace LawFirmAPI.Services
             if (document == null)
                 throw new KeyNotFoundException("Document not found");
 
+            var sharedByUser = await _context.Users.FindAsync(userId);
+            var sharedByName = sharedByUser != null ? $"{sharedByUser.FirstName} {sharedByUser.LastName}".Trim() : "A user";
+
+            long? targetUserId = sharedWithUserId;
+            string? targetEmail = sharedWithEmail;
+
+            if (!targetUserId.HasValue && !string.IsNullOrEmpty(targetEmail))
+            {
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == targetEmail);
+                if (user != null)
+                {
+                    targetUserId = user.Id;
+                }
+            }
+
+            if (targetUserId.HasValue && string.IsNullOrEmpty(targetEmail))
+            {
+                var user = await _context.Users.FindAsync(targetUserId.Value);
+                if (user != null)
+                {
+                    targetEmail = user.Email;
+                }
+            }
+
+            // Create share
             var share = new DocumentShare
             {
                 DocumentId = documentId,
-                SharedWithUserId = sharedWithUserId,
-                SharedWithEmail = sharedWithEmail,
+                SharedWithUserId = targetUserId,
+                SharedWithEmail = targetEmail,
                 Permission = permission,
                 ShareToken = Guid.NewGuid().ToString().Replace("-", ""),
                 ExpiresAt = expiresInDays.HasValue ? DateTime.UtcNow.AddDays(expiresInDays.Value) : null,
@@ -287,12 +321,45 @@ namespace LawFirmAPI.Services
             _context.DocumentShares.Add(share);
             await _context.SaveChangesAsync();
 
+            // ✅ Send email notification
+            if (!string.IsNullOrEmpty(targetEmail))
+            {
+                try
+                {
+                    Console.WriteLine($"Sending share email to: {targetEmail}");
+                    await _emailService.SendDocumentShareEmail(
+                        targetEmail,
+                        document.Title,
+                        sharedByName,
+                        share.ShareToken,
+                        permission,
+                        expiresInDays
+                    );
+                    Console.WriteLine($"✅ Share email sent successfully to: {targetEmail}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"❌ Failed to send share email: {ex.Message}");
+                    Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"⚠️ No email provided for share. TargetUserId: {targetUserId}");
+            }
+
+            // Add activity log
+            AddRecentActivity(firmId, userId, "SHARE", "Document", documentId, document.Title,
+                $"Shared document '{document.Title}' with {targetEmail ?? targetUserId?.ToString() ?? "Unknown"}");
+
             return new DocumentShareDto
             {
                 Id = share.Id,
                 ShareToken = share.ShareToken,
                 Permission = share.Permission,
-                ExpiresAt = share.ExpiresAt
+                ExpiresAt = share.ExpiresAt,
+                SharedWithEmail = targetEmail,
+                SharedWithUserId = targetUserId
             };
         }
 
@@ -312,29 +379,35 @@ namespace LawFirmAPI.Services
 
         public async Task<List<SharedDocumentDto>> GetSharedWithMe(long userId, long firmId)
         {
-            var shares = await (from s in _context.DocumentShares
-                                join d in _context.Documents on s.DocumentId equals d.Id
-                                join u in _context.Users on s.SharedBy equals u.Id into users
-                                from sharedByUser in users.DefaultIfEmpty()
-                                where s.SharedWithUserId == userId && d.FirmId == firmId
-                                select new SharedDocumentDto
-                                {
-                                    Id = s.Id,
-                                    DocumentId = s.DocumentId,
-                                    DocumentTitle = d.Title,
-                                    DocumentFileName = d.FileName,
-                                    SharedBy = sharedByUser != null ? $"{sharedByUser.FirstName} {sharedByUser.LastName}".Trim() : "Unknown",
-                                    SharedByEmail = sharedByUser != null ? sharedByUser.Email : string.Empty,
-                                    SharedWithEmail = s.SharedWithEmail ?? string.Empty,
-                                    Permission = s.Permission,
-                                    ShareToken = s.ShareToken,
-                                    SharedAt = s.SharedAt,
-                                    ExpiresAt = s.ExpiresAt,
-                                    IsActive = s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow
-                                })
-                                .ToListAsync();
+            var shares = await _context.DocumentShares
+                .Include(s => s.Document)
+                .Where(s => s.SharedWithUserId == userId && s.Document != null && s.Document.FirmId == firmId)
+                .ToListAsync();
 
-            return shares;
+            var sharedByIds = shares.Select(s => s.SharedBy).Distinct().ToList();
+            var users = await _context.Users
+                .Where(u => sharedByIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id);
+
+            return shares.Select(s =>
+            {
+                users.TryGetValue(s.SharedBy, out var sharedByUser);
+                return new SharedDocumentDto
+                {
+                    Id = s.Id,
+                    DocumentId = s.DocumentId,
+                    DocumentTitle = s.Document != null ? s.Document.Title : string.Empty,
+                    DocumentFileName = s.Document != null ? s.Document.FileName : string.Empty,
+                    SharedBy = sharedByUser != null ? $"{sharedByUser.FirstName} {sharedByUser.LastName}".Trim() : "Unknown",
+                    SharedByEmail = sharedByUser != null ? sharedByUser.Email : string.Empty,
+                    SharedWithEmail = s.SharedWithEmail ?? string.Empty,
+                    Permission = s.Permission,
+                    ShareToken = s.ShareToken,
+                    SharedAt = s.SharedAt,
+                    ExpiresAt = s.ExpiresAt,
+                    IsActive = s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow
+                };
+            }).ToList();
         }
 
         public async Task<List<SharedDocumentDto>> GetSharedByMe(long userId, long firmId)
@@ -371,6 +444,7 @@ namespace LawFirmAPI.Services
             if (share == null || share.Document == null)
                 return null;
 
+            // Check if expired
             if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
                 return null;
 
@@ -395,6 +469,7 @@ namespace LawFirmAPI.Services
             if (share == null || share.Document == null)
                 return null;
 
+            // Check if expired
             if (share.ExpiresAt.HasValue && share.ExpiresAt.Value < DateTime.UtcNow)
                 return null;
 

@@ -65,7 +65,10 @@ namespace LawFirmAPI.Models.DTOs
         public string ShareToken { get; set; } = string.Empty;
         public string Permission { get; set; } = "VIEW";
         public DateTime? ExpiresAt { get; set; }
+        public string? SharedWithEmail { get; set; }
+        public long? SharedWithUserId { get; set; }
     }
+
 
     public class DocumentCommentDto
     {

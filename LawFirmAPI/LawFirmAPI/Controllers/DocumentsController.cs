@@ -1,4 +1,4 @@
-// Controllers/DocumentsController.cs - Fixed route ordering
+// Controllers/DocumentsController.cs - Complete Fixed Version
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,9 +23,10 @@ namespace LawFirmAPI.Controllers
             _firmContextService = firmContextService;
         }
 
-        // ==================== Document Sharing (MUST COME FIRST) ====================
+        // ==================== ⚠️ ALL SPECIFIC ROUTES MUST COME FIRST ====================
+        // These have NO {id} parameter or have specific patterns that won't match "shared-with-me"
         
-        // ✅ IMPORTANT: These routes MUST come before [HttpGet("{id}")]
+        // ==================== DOCUMENT SHARING ROUTES ====================
         
         [HttpGet("shared-with-me")]
         public async Task<IActionResult> GetSharedWithMe()
@@ -66,167 +67,7 @@ namespace LawFirmAPI.Controllers
             return Ok(details);
         }
 
-        // ==================== Basic Document Operations ====================
-        
-        [HttpGet]
-        public async Task<IActionResult> GetAllDocuments(
-            [FromQuery] long? matterId,
-            [FromQuery] long? folderId,
-            [FromQuery] string? search)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var documents = await _documentsService.GetAllDocuments(firmId, matterId, folderId, search);
-            return Ok(documents);
-        }
-
-        // ⚠️ This route must come AFTER all specific routes
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetDocumentById(long id)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var document = await _documentsService.GetDocumentById(id, firmId);
-            if (document == null)
-                return NotFound(new { message = "Document not found" });
-            return Ok(document);
-        }
-
-        [HttpPost("upload")]
-        public async Task<IActionResult> UploadDocument([FromForm] UploadDocumentDto uploadDto)
-        {
-            if (uploadDto.File == null || uploadDto.File.Length == 0)
-                return BadRequest(new { message = "No file uploaded" });
-
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var userId = await _firmContextService.GetCurrentUserId();
-            var document = await _documentsService.UploadDocument(firmId, userId, uploadDto);
-            return Ok(new { message = "Document uploaded successfully", documentId = document.Id, document });
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateDocument(long id, [FromBody] UpdateDocumentDto updateDto)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var document = await _documentsService.UpdateDocument(id, firmId, updateDto);
-            return Ok(new { message = "Document updated successfully", document });
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteDocument(long id)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var result = await _documentsService.DeleteDocument(id, firmId);
-            if (!result)
-                return NotFound(new { message = "Document not found" });
-            return Ok(new { message = "Document deleted successfully" });
-        }
-
-        [HttpGet("{id}/download")]
-        public async Task<IActionResult> DownloadDocument(long id)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var fileBytes = await _documentsService.DownloadDocument(id, firmId);
-            var document = await _documentsService.GetDocumentById(id, firmId);
-            return File(fileBytes, document?.MimeType ?? "application/octet-stream", document?.FileName);
-        }
-
-        // ==================== Document Versions ====================
-        
-        [HttpPost("{id}/versions")]
-        public async Task<IActionResult> CreateVersion(long id, IFormFile file, [FromQuery] string? changeSummary)
-        {
-            if (file == null || file.Length == 0)
-                return BadRequest(new { message = "No file uploaded" });
-
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var userId = await _firmContextService.GetCurrentUserId();
-            var version = await _documentsService.CreateVersion(id, firmId, userId, file, changeSummary);
-            return Ok(new { message = "New version created successfully", version });
-        }
-
-        [HttpGet("{id}/versions")]
-        public async Task<IActionResult> GetDocumentVersions(long id)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var versions = await _documentsService.GetDocumentVersions(id, firmId);
-            return Ok(versions);
-        }
-
-        // ==================== Document Sharing (Post/Delete) ====================
-        
-        [HttpPost("{id}/share")]
-        public async Task<IActionResult> ShareDocument(
-            long id,
-            [FromQuery] long? userId,
-            [FromQuery] string? email,
-            [FromQuery] string permission = "VIEW",
-            [FromQuery] int? expiresInDays = null)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var currentUserId = await _firmContextService.GetCurrentUserId();
-            var share = await _documentsService.ShareDocument(id, firmId, currentUserId, userId, email, permission, expiresInDays);
-            return Ok(new { message = "Document shared successfully", shareToken = share.ShareToken });
-        }
-
-        [HttpDelete("shares/{shareId}")]
-        public async Task<IActionResult> RevokeShare(long shareId)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var result = await _documentsService.RevokeShare(shareId, firmId);
-            if (!result)
-                return NotFound(new { message = "Share not found" });
-            return Ok(new { message = "Share revoked successfully" });
-        }
-
-        // ==================== Document Comments ====================
-        
-        [HttpGet("{id}/comments")]
-        public async Task<IActionResult> GetDocumentComments(long id)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var comments = await _documentsService.GetDocumentComments(id, firmId);
-            return Ok(comments);
-        }
-
-        [HttpPost("{id}/comments")]
-        public async Task<IActionResult> AddComment(long id, [FromBody] AddCommentDto addCommentDto)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var userId = await _firmContextService.GetCurrentUserId();
-            var comment = await _documentsService.AddComment(id, firmId, userId, addCommentDto.Comment);
-            return Ok(new { message = "Comment added successfully", comment });
-        }
-
-        [HttpDelete("comments/{commentId}")]
-        public async Task<IActionResult> DeleteComment(long commentId)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var result = await _documentsService.DeleteComment(commentId, firmId);
-            if (!result)
-                return NotFound(new { message = "Comment not found" });
-            return Ok(new { message = "Comment deleted successfully" });
-        }
-
-        // ==================== AI Features ====================
-        
-        [HttpGet("{id}/summary")]
-        public async Task<IActionResult> GetDocumentSummary(long id)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var summary = await _documentsService.GetDocumentSummary(id, firmId);
-            if (summary == null)
-                return Ok(new { message = "No summary available yet. Use the summarize endpoint to generate one." });
-            return Ok(summary);
-        }
-
-        [HttpPost("{id}/summarize")]
-        public async Task<IActionResult> GenerateSummary(long id)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var summary = await _documentsService.GenerateSummary(id, firmId);
-            return Ok(new { message = "Summary generated successfully", summary });
-        }
-
-        // ==================== Document Types ====================
+        // ==================== DOCUMENT TYPES ====================
         
         [HttpGet("types")]
         public async Task<IActionResult> GetDocumentTypes()
@@ -244,7 +85,7 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Document type created successfully", type });
         }
 
-        // ==================== Folders ====================
+        // ==================== FOLDERS ====================
         
         [HttpGet("folders")]
         public async Task<IActionResult> GetFolders([FromQuery] long? parentFolderId)
@@ -263,17 +104,7 @@ namespace LawFirmAPI.Controllers
             return Ok(new { message = "Folder created successfully", folder });
         }
 
-        [HttpPost("{id}/move")]
-        public async Task<IActionResult> MoveDocument(long id, [FromQuery] long? folderId)
-        {
-            var firmId = await _firmContextService.GetCurrentFirmId();
-            var result = await _documentsService.MoveDocument(id, firmId, folderId);
-            if (!result)
-                return NotFound(new { message = "Document not found" });
-            return Ok(new { message = "Document moved successfully" });
-        }
-
-        // ==================== Templates ====================
+        // ==================== TEMPLATES ====================
         
         [HttpGet("templates")]
         public async Task<IActionResult> GetTemplates([FromQuery] string? category)
@@ -303,6 +134,182 @@ namespace LawFirmAPI.Controllers
             if (!result)
                 return NotFound(new { message = "Template not found" });
             return Ok(new { message = "Template deleted successfully" });
+        }
+
+        // ==================== SHARING (POST/DELETE) ====================
+        
+        [HttpPost("{id}/share")]
+        public async Task<IActionResult> ShareDocument(
+            long id,
+            [FromQuery] long? userId,
+            [FromQuery] string? email,
+            [FromQuery] string permission = "VIEW",
+            [FromQuery] int? expiresInDays = null)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var currentUserId = await _firmContextService.GetCurrentUserId();
+            var share = await _documentsService.ShareDocument(id, firmId, currentUserId, userId, email, permission, expiresInDays);
+            return Ok(new { message = "Document shared successfully", shareToken = share.ShareToken });
+        }
+
+        [HttpDelete("shares/{shareId}")]
+        public async Task<IActionResult> RevokeShare(long shareId)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var result = await _documentsService.RevokeShare(shareId, firmId);
+            if (!result)
+                return NotFound(new { message = "Share not found" });
+            return Ok(new { message = "Share revoked successfully" });
+        }
+
+        // ==================== GET ALL DOCUMENTS ====================
+        
+        [HttpGet]
+        public async Task<IActionResult> GetAllDocuments(
+            [FromQuery] long? matterId,
+            [FromQuery] long? folderId,
+            [FromQuery] string? search)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var documents = await _documentsService.GetAllDocuments(firmId, matterId, folderId, search);
+            return Ok(documents);
+        }
+
+        // ==================== DOCUMENT UPLOAD ====================
+        
+        [HttpPost("upload")]
+        public async Task<IActionResult> UploadDocument([FromForm] UploadDocumentDto uploadDto)
+        {
+            if (uploadDto.File == null || uploadDto.File.Length == 0)
+                return BadRequest(new { message = "No file uploaded" });
+
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var userId = await _firmContextService.GetCurrentUserId();
+            var document = await _documentsService.UploadDocument(firmId, userId, uploadDto);
+            return Ok(new { message = "Document uploaded successfully", documentId = document.Id, document });
+        }
+
+        // ==================== DOCUMENT COMMENTS ====================
+        
+        [HttpGet("{id}/comments")]
+        public async Task<IActionResult> GetDocumentComments(long id)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var comments = await _documentsService.GetDocumentComments(id, firmId);
+            return Ok(comments);
+        }
+
+        [HttpPost("{id}/comments")]
+        public async Task<IActionResult> AddComment(long id, [FromBody] AddCommentDto addCommentDto)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var userId = await _firmContextService.GetCurrentUserId();
+            var comment = await _documentsService.AddComment(id, firmId, userId, addCommentDto.Comment);
+            return Ok(new { message = "Comment added successfully", comment });
+        }
+
+        [HttpDelete("comments/{commentId}")]
+        public async Task<IActionResult> DeleteComment(long commentId)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var result = await _documentsService.DeleteComment(commentId, firmId);
+            if (!result)
+                return NotFound(new { message = "Comment not found" });
+            return Ok(new { message = "Comment deleted successfully" });
+        }
+
+        // ==================== AI FEATURES ====================
+        
+        [HttpGet("{id}/summary")]
+        public async Task<IActionResult> GetDocumentSummary(long id)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var summary = await _documentsService.GetDocumentSummary(id, firmId);
+            if (summary == null)
+                return Ok(new { message = "No summary available yet. Use the summarize endpoint to generate one." });
+            return Ok(summary);
+        }
+
+        [HttpPost("{id}/summarize")]
+        public async Task<IActionResult> GenerateSummary(long id)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var summary = await _documentsService.GenerateSummary(id, firmId);
+            return Ok(new { message = "Summary generated successfully", summary });
+        }
+
+        // ==================== DOCUMENT VERSIONS ====================
+        
+        [HttpPost("{id}/versions")]
+        public async Task<IActionResult> CreateVersion(long id, IFormFile file, [FromQuery] string? changeSummary)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "No file uploaded" });
+
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var userId = await _firmContextService.GetCurrentUserId();
+            var version = await _documentsService.CreateVersion(id, firmId, userId, file, changeSummary);
+            return Ok(new { message = "New version created successfully", version });
+        }
+
+        [HttpGet("{id}/versions")]
+        public async Task<IActionResult> GetDocumentVersions(long id)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var versions = await _documentsService.GetDocumentVersions(id, firmId);
+            return Ok(versions);
+        }
+
+        // ==================== DOCUMENT MOVEMENT ====================
+        
+        [HttpPost("{id}/move")]
+        public async Task<IActionResult> MoveDocument(long id, [FromQuery] long? folderId)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var result = await _documentsService.MoveDocument(id, firmId, folderId);
+            if (!result)
+                return NotFound(new { message = "Document not found" });
+            return Ok(new { message = "Document moved successfully" });
+        }
+
+        // ==================== ⚠️ LAST: DOCUMENT OPERATIONS WITH ID ====================
+        // This MUST be the LAST route defined. It catches any request that doesn't match above
+        
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetDocumentById(long id)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var document = await _documentsService.GetDocumentById(id, firmId);
+            if (document == null)
+                return NotFound(new { message = "Document not found" });
+            return Ok(document);
+        }
+
+        [HttpGet("{id}/download")]
+        public async Task<IActionResult> DownloadDocument(long id)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var fileBytes = await _documentsService.DownloadDocument(id, firmId);
+            var document = await _documentsService.GetDocumentById(id, firmId);
+            return File(fileBytes, document?.MimeType ?? "application/octet-stream", document?.FileName);
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateDocument(long id, [FromBody] UpdateDocumentDto updateDto)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var document = await _documentsService.UpdateDocument(id, firmId, updateDto);
+            return Ok(new { message = "Document updated successfully", document });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteDocument(long id)
+        {
+            var firmId = await _firmContextService.GetCurrentFirmId();
+            var result = await _documentsService.DeleteDocument(id, firmId);
+            if (!result)
+                return NotFound(new { message = "Document not found" });
+            return Ok(new { message = "Document deleted successfully" });
         }
     }
 }
